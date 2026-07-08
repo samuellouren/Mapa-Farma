@@ -4,13 +4,13 @@ import TabBar from '../components/TabBar';
 import MapaScreen from '../screens/MapaScreen';
 import FichaScreen from '../screens/FichaScreen';
 import RegistrarScreen from '../screens/RegistrarScreen';
+import HistoricoScreen from '../screens/HistoricoScreen';
 import EmBreve from '../screens/EmBreve';
 
 const Tab = createBottomTabNavigator();
 const MapaStack = createNativeStackNavigator();
 
 // Stubs estáveis (referência fixa) para telas ainda não construídas.
-const HistoricoStub = () => <EmBreve titulo="Histórico" />;
 const PedidosStub = () => <EmBreve titulo="Pedidos" />;
 const PainelStub = () => <EmBreve titulo="Estatísticas" />;
 const ContaStub = () => <EmBreve titulo="Conta" />;
@@ -23,7 +23,7 @@ function MapaStackScreen() {
       <MapaStack.Screen name="MapaHome" component={MapaScreen} />
       <MapaStack.Screen name="Ficha" component={FichaScreen} />
       <MapaStack.Screen name="Registrar" component={RegistrarScreen} />
-      <MapaStack.Screen name="Historico" component={HistoricoStub} />
+      <MapaStack.Screen name="Historico" component={HistoricoScreen} />
     </MapaStack.Navigator>
   );
 }

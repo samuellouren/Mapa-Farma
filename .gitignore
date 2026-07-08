@@ -1,0 +1,31 @@
+# Dependências
+node_modules/
+
+# Ambiente / segredos
+.env
+.env.local
+server/.env
+
+# Banco local (libSQL/SQLite)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Expo / React Native
+client/.expo/
+client/dist/
+client/web-build/
+*.orig.*
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# SO / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -84,3 +84,11 @@ export function IconeLocalizacao({ cor = '#7a2833', tamanho = 22 }) {
     </Svg>
   );
 }
+
+export function IconeVoltar({ cor = '#fff', tamanho = 22 }) {
+  return (
+    <Svg width={tamanho} height={tamanho} viewBox="0 0 22 22" fill="none">
+      <Path d="M13.5 4.5 7 11l6.5 6.5" stroke={cor} strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}

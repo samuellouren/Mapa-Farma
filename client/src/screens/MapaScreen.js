@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ActivityIndicator, Linking, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Map, Camera, Marker, UserLocation } from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
 import { cores, fontes } from '../theme';
@@ -51,21 +52,29 @@ export default function MapaScreen({ navigation }) {
   const [mostrarNomes, setMostrarNomes] = useState(false);
   const [novaFarmacia, setNovaFarmacia] = useState(null); // {latitude, longitude} | null
 
+  // Só na montagem: abre centralizado na posição do vendedor (fallback: centro).
   useEffect(() => {
-    (async () => {
-      try {
-        setErro('');
-        const dados = await api.listarFarmacias();
-        setFarmacias(dados);
-      } catch {
-        setErro('Não foi possível carregar as farmácias.');
-      } finally {
-        setCarregando(false);
-      }
-    })();
-    // Abre centralizado na posição do vendedor (fallback: centro de Maceió).
     irParaMinhaLocalizacao(15);
   }, []);
+
+  // Recarrega a lista ao ganhar foco (reflete status/cor após Ficha/Registrar).
+  useFocusEffect(
+    useCallback(() => {
+      let ativo = true;
+      (async () => {
+        try {
+          setErro('');
+          const dados = await api.listarFarmacias();
+          if (ativo) setFarmacias(dados);
+        } catch {
+          if (ativo) setErro('Não foi possível carregar as farmácias.');
+        } finally {
+          if (ativo) setCarregando(false);
+        }
+      })();
+      return () => { ativo = false; };
+    }, [])
+  );
 
   const temFiltro =
     filtros.relacao !== 'all' || filtros.status_visita !== 'all' || filtros.perfil_pagamento !== 'all';

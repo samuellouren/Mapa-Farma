@@ -41,6 +41,7 @@ export const api = {
   me: () => request('/auth/me'),
 
   listarFarmacias: (params) => request('/farmacias' + toQuery(params)),
+  farmacia: (id) => request(`/farmacias/${id}`),
   criarFarmacia: (dados) => request('/farmacias', { method: 'POST', body: dados }),
   atualizarFarmacia: (id, patch) => request(`/farmacias/${id}`, { method: 'PATCH', body: patch }),
   relatorios: (id) => request(`/farmacias/${id}/relatorios`),

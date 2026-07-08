@@ -33,6 +33,13 @@ farmaciasRouter.get('/', ah(async (req, res) => {
   res.json(r.rows);
 }));
 
+// GET /farmacias/:id  (ficha)
+farmaciasRouter.get('/:id(\\d+)', ah(async (req, res) => {
+  const r = await db.execute({ sql: 'SELECT * FROM farmacias WHERE id = ?', args: [req.params.id] });
+  if (!r.rows[0]) return res.status(404).json({ erro: 'Farmácia não encontrada' });
+  res.json(r.rows[0]);
+}));
+
 // POST /farmacias  (cadastro manual — mesmos campos que vêm do Overpass)
 farmaciasRouter.post('/', ah(async (req, res) => {
   const { nome, endereco, bairro, latitude, longitude } = req.body || {};

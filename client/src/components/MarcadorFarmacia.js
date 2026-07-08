@@ -5,28 +5,33 @@ import { cores } from '../theme';
 // = bolinha branca com borda. Selecionado aumenta de escala; fora do filtro
 // fica esmaecido. Com zoom próximo (mostrarNome), o nome aparece embaixo.
 //
-// IMPORTANTE (área de toque): no Android o Marker nativo dimensiona sua área
-// de toque pelo tamanho deste componente. Por isso a âncora encolhe até o
-// pino (sem largura fixa) e o label fica como overlay ABSOLUTO com
-// pointerEvents="none": assim o label não entra no cálculo de tamanho nem
-// rouba/desvia o toque de marcadores vizinhos (que ficam densos na cidade).
+// ÁREA DE TOQUE (crítico p/ o onPress do Marker funcionar no Android):
+// o toque NÃO é o child recebendo o gesto — é o MapView que, no clique,
+// projeta o ponto e testa um retângulo do tamanho de getContentSize() (o
+// tamanho MEDIDO deste componente-raiz) centrado na coordenada. Por isso a
+// raiz tem tamanho fixo (ALVO x ALVO): garante um retângulo de toque sólido,
+// não-zero e amigável ao dedo. O pino visual fica menor, centralizado dentro
+// dessa área. O label é overlay ABSOLUTO (fora do fluxo) — não altera o
+// tamanho medido nem, portanto, a área de toque.
+const ALVO = 44;
+
 export default function MarcadorFarmacia({ cliente, selecionado, apagado, nome, mostrarNome }) {
   const escala = selecionado ? 1.28 : 1;
   const opacidade = apagado ? 0.28 : 1;
 
   return (
-    <View style={[styles.ancora, { opacity: opacidade }]}>
+    <View style={styles.area}>
       {cliente ? (
-        <View style={[styles.cliente, selecionado && styles.clienteSel, { transform: [{ scale: escala }] }]}>
+        <View style={[styles.cliente, selecionado && styles.clienteSel, { transform: [{ scale: escala }], opacity: opacidade }]}>
           <View style={styles.cruzH} />
           <View style={styles.cruzV} />
         </View>
       ) : (
-        <View style={[styles.naoCliente, selecionado && styles.naoClienteSel, { transform: [{ scale: escala }] }]} />
+        <View style={[styles.naoCliente, selecionado && styles.naoClienteSel, { transform: [{ scale: escala }], opacity: opacidade }]} />
       )}
       {mostrarNome && (
         <View style={styles.labelWrap} pointerEvents="none">
-          <Text style={styles.nome} numberOfLines={1}>
+          <Text style={[styles.nome, { opacity: opacidade }]} numberOfLines={1}>
             {nome}
           </Text>
         </View>
@@ -38,8 +43,8 @@ export default function MarcadorFarmacia({ cliente, selecionado, apagado, nome, 
 const LABEL_W = 120;
 
 const styles = StyleSheet.create({
-  // Sem largura fixa: encolhe até o pino, mantendo a área de toque pequena.
-  ancora: { alignItems: 'center', justifyContent: 'center' },
+  // Tamanho fixo = área de toque sólida centrada na coordenada (anchor center).
+  area: { width: ALVO, height: ALVO, alignItems: 'center', justifyContent: 'center' },
   cliente: {
     width: 27, height: 27, borderRadius: 13.5, backgroundColor: cores.verde,
     borderWidth: 2.5, borderColor: cores.branco, alignItems: 'center', justifyContent: 'center',
@@ -54,10 +59,9 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 1 }, shadowRadius: 3, elevation: 3,
   },
   naoClienteSel: { borderColor: cores.vinho },
-  // Overlay absoluto centrado sob o pino (left:50% + marginLeft:-W/2), fora do
-  // fluxo — não afeta o tamanho da âncora nem captura toque.
+  // Overlay absoluto logo abaixo do pino, centrado; fora do fluxo (não mede).
   labelWrap: {
-    position: 'absolute', top: '100%', left: '50%', marginLeft: -LABEL_W / 2, marginTop: 4,
+    position: 'absolute', top: ALVO / 2 + 14, left: '50%', marginLeft: -LABEL_W / 2,
     width: LABEL_W, alignItems: 'center',
   },
   nome: {

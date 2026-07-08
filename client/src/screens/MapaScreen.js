@@ -51,6 +51,7 @@ export default function MapaScreen({ navigation }) {
   const [selecionada, setSelecionada] = useState(null);
   const [mostrarNomes, setMostrarNomes] = useState(false);
   const [novaFarmacia, setNovaFarmacia] = useState(null); // {latitude, longitude} | null
+  const [localizando, setLocalizando] = useState(false);
 
   // Só na montagem: abre centralizado na posição do vendedor (fallback: centro).
   useEffect(() => {
@@ -104,12 +105,23 @@ export default function MapaScreen({ navigation }) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
-      const pos = await Location.getCurrentPositionAsync({});
+      setLocalizando(true);
+      // Caminho rápido: última posição conhecida costuma retornar na hora,
+      // enquanto o fix atual (GPS real) pode levar alguns segundos.
+      const ultima = await Location.getLastKnownPositionAsync();
+      if (ultima && coordValida(ultima.coords.longitude, ultima.coords.latitude)) {
+        cameraRef.current?.flyTo({ center: [ultima.coords.longitude, ultima.coords.latitude], zoom, duration: 800 });
+      }
+      // Fix atual, mais preciso.
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const { longitude, latitude } = pos.coords;
-      if (!coordValida(longitude, latitude)) return; // GPS ruim → fica em Maceió
-      cameraRef.current?.flyTo({ center: [longitude, latitude], zoom, duration: 1200 });
+      if (coordValida(longitude, latitude)) {
+        cameraRef.current?.flyTo({ center: [longitude, latitude], zoom, duration: 800 });
+      }
     } catch {
       /* silencioso: sem permissão ou GPS off → fica em Maceió */
+    } finally {
+      setLocalizando(false);
     }
   }
 
@@ -224,8 +236,13 @@ export default function MapaScreen({ navigation }) {
         </TouchableOpacity>
 
         {/* minha localização */}
-        <TouchableOpacity style={styles.btnLocal} onPress={() => irParaMinhaLocalizacao()} activeOpacity={0.85}>
-          <IconeLocalizacao />
+        <TouchableOpacity
+          style={styles.btnLocal}
+          onPress={() => irParaMinhaLocalizacao()}
+          disabled={localizando}
+          activeOpacity={0.85}
+        >
+          {localizando ? <ActivityIndicator color={cores.vinho} size="small" /> : <IconeLocalizacao />}
         </TouchableOpacity>
 
         {carregando && (

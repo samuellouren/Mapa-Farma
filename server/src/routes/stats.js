@@ -64,12 +64,18 @@ statsRouter.get('/', ah(async (req, res) => {
   const carteira = { paga_em_dia: 0, atrasa: 0, nao_paga: 0 };
   pag.rows.forEach((r) => { carteira[r.perfil_pagamento] = r.n; });
 
+  const perfilPagamentoClientes = linhas
+    .filter((f) => f.perfil_pagamento)
+    .sort((a, b) => a.nome.localeCompare(b.nome))
+    .map((f) => ({ id: f.id, nome: f.nome, perfil_pagamento: f.perfil_pagamento }));
+
   res.json({
     periodo,
     visitas_periodo: vis.rows[0].total,
     farmacias_visitadas: vis.rows[0].farmacias,
     por_vendedor: vendedores.rows,
     perfil_pagamento_carteira: carteira,
+    perfil_pagamento_clientes: perfilPagamentoClientes,
     top_clientes: topClientes,
     sem_visita_ha_mais_tempo: semVisita,
   });

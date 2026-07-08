@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
 import { cores, raio } from '../theme';
 import { useAuth } from '../lib/auth';
 
@@ -21,11 +21,26 @@ function Logo() {
   );
 }
 
+// Olho aberto/fechado para revelar/ocultar a senha.
+function IconeOlho({ aberto }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+        stroke={cores.textoMudo} strokeWidth={1.7} strokeLinejoin="round"
+      />
+      <Circle cx={12} cy={12} r={3} stroke={cores.textoMudo} strokeWidth={1.7} />
+      {!aberto && <Line x1={4} y1={4} x2={20} y2={20} stroke={cores.textoMudo} strokeWidth={1.7} strokeLinecap="round" />}
+    </Svg>
+  );
+}
+
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { entrar } = useAuth();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
 
@@ -70,15 +85,27 @@ export default function LoginScreen() {
         />
 
         <Text style={styles.rotulo}>Senha</Text>
-        <TextInput
-          style={styles.input}
-          value={senha}
-          onChangeText={setSenha}
-          placeholder="••••••••"
-          placeholderTextColor={cores.textoFraco}
-          secureTextEntry
-          onSubmitEditing={podeEntrar ? aoEntrar : undefined}
-        />
+        <View style={styles.senhaLinha}>
+          <TextInput
+            style={[styles.input, styles.senhaInput]}
+            value={senha}
+            onChangeText={setSenha}
+            placeholder="••••••••"
+            placeholderTextColor={cores.textoFraco}
+            secureTextEntry={!mostrarSenha}
+            autoCapitalize="none"
+            onSubmitEditing={podeEntrar ? aoEntrar : undefined}
+          />
+          <TouchableOpacity
+            style={styles.olho}
+            onPress={() => setMostrarSenha((v) => !v)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+            activeOpacity={0.7}
+          >
+            <IconeOlho aberto={mostrarSenha} />
+          </TouchableOpacity>
+        </View>
 
         {erro ? <Text style={styles.erro}>{erro}</Text> : null}
 
@@ -120,6 +147,9 @@ const styles = StyleSheet.create({
     backgroundColor: cores.branco, paddingHorizontal: 14, fontSize: 15,
     color: cores.texto, marginBottom: 14,
   },
+  senhaLinha: { position: 'relative', justifyContent: 'center' },
+  senhaInput: { paddingRight: 50 },
+  olho: { position: 'absolute', right: 0, top: 0, width: 50, height: 52, alignItems: 'center', justifyContent: 'center' },
   erro: { color: cores.vermelho, fontSize: 13.5, marginBottom: 8 },
   botao: {
     height: 54, borderRadius: raio.lg, backgroundColor: cores.vinho,

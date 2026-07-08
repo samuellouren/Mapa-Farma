@@ -92,14 +92,24 @@ export default function MapaScreen({ navigation }) {
   const correspondentes = farmacias.filter(corresponde);
   const nClientes = correspondentes.filter((f) => f.eh_cliente).length;
 
-  async function irParaMinhaLocalizacao(zoom) {
+  // Só voa se o GPS retornar uma coordenada plausível na região de Maceió/AL.
+  // Sem isso, um fix ruim (0,0, cache, localização de emulador) levaria a
+  // câmera pro oceano; o fallback é ficar em Maceió (initialViewState).
+  function coordValida(lng, lat) {
+    return Number.isFinite(lng) && Number.isFinite(lat)
+      && lat > -11 && lat < -8 && lng > -37 && lng < -34;
+  }
+
+  async function irParaMinhaLocalizacao(zoom = 16) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
       const pos = await Location.getCurrentPositionAsync({});
-      cameraRef.current?.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom, duration: 1200 });
+      const { longitude, latitude } = pos.coords;
+      if (!coordValida(longitude, latitude)) return; // GPS ruim → fica em Maceió
+      cameraRef.current?.flyTo({ center: [longitude, latitude], zoom, duration: 1200 });
     } catch {
-      /* silencioso: sem permissão ou GPS off */
+      /* silencioso: sem permissão ou GPS off → fica em Maceió */
     }
   }
 
@@ -182,8 +192,6 @@ export default function MapaScreen({ navigation }) {
                 key={f.id}
                 id={String(f.id)}
                 lngLat={[f.longitude, f.latitude]}
-                anchor="top"
-                offset={[0, f.eh_cliente ? -13.5 : -8]}
                 onPress={() => setSelecionada(f)}
               >
                 <MarcadorFarmacia

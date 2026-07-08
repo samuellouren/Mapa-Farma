@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import {
-  Modal, View, Text, TextInput, TouchableOpacity, Pressable,
-  StyleSheet, KeyboardAvoidingView, Platform,
+  Modal, View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { cores } from '../theme';
 import { api } from '../api/client';
 import { STATUS_PAGAMENTO } from '../lib/enums';
 import { dataCurtaMes } from '../lib/formato';
+import { useAlturaTeclado } from '../lib/useAlturaTeclado';
 import FarmaciaPicker from './FarmaciaPicker';
 
 const SEG_STATUS = Object.entries(STATUS_PAGAMENTO).map(([v, { label }]) => [v, label]);
@@ -23,6 +23,7 @@ function centavosDe(texto) {
 
 export default function NovoPedidoSheet({ farmacias, onFechar, onCriado }) {
   const insets = useSafeAreaInsets();
+  const alturaTeclado = useAlturaTeclado();
   const [farmacia, setFarmacia] = useState(null);
   const [valor, setValor] = useState('');
   const [status, setStatus] = useState('pago');
@@ -52,9 +53,9 @@ export default function NovoPedidoSheet({ farmacias, onFechar, onCriado }) {
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onFechar}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={{ flex: 1 }}>
         <Pressable style={styles.backdrop} onPress={onFechar} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + 22 }]}>
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 22, marginBottom: alturaTeclado }]}>
           <View style={styles.puxador} />
           <Text style={styles.titulo}>Novo pedido</Text>
           <Text style={styles.subtitulo}>Registrado em {hoje}</Text>
@@ -95,7 +96,7 @@ export default function NovoPedidoSheet({ farmacias, onFechar, onCriado }) {
             <Text style={styles.botaoTexto}>{salvando ? 'Salvando…' : 'Salvar pedido'}</Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

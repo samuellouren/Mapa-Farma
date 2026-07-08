@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import {
-  Modal, View, Text, TextInput, TouchableOpacity, Pressable,
-  StyleSheet, KeyboardAvoidingView, Platform,
+  Modal, View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { cores } from '../theme';
 import { api } from '../api/client';
+import { useAlturaTeclado } from '../lib/useAlturaTeclado';
 
 // Bbox de Maceió pra feedback imediato; o polígono fino é validado no servidor.
 const BBOX = { latMin: -9.72, latMax: -9.38, lngMin: -35.80, lngMax: -35.60 };
@@ -19,6 +19,7 @@ const parseCoord = (s) => {
 // O pai monta este componente só quando aberto — o estado zera a cada abertura.
 export default function NovaFarmaciaSheet({ coordenada, onFechar, onCriada }) {
   const insets = useSafeAreaInsets();
+  const alturaTeclado = useAlturaTeclado();
   const [nome, setNome] = useState('');
   const [endereco, setEndereco] = useState('');
   const [bairro, setBairro] = useState('');
@@ -54,9 +55,9 @@ export default function NovaFarmaciaSheet({ coordenada, onFechar, onCriada }) {
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onFechar}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={{ flex: 1 }}>
         <Pressable style={styles.backdrop} onPress={onFechar} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + 22 }]}>
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 22, marginBottom: alturaTeclado }]}>
           <View style={styles.puxador} />
           <Text style={styles.titulo}>Nova farmácia</Text>
 
@@ -86,7 +87,7 @@ export default function NovaFarmaciaSheet({ coordenada, onFechar, onCriada }) {
             <Text style={styles.botaoTexto}>{salvando ? 'Salvando…' : 'Salvar farmácia'}</Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

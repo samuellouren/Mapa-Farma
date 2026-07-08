@@ -6,13 +6,13 @@ import FichaScreen from '../screens/FichaScreen';
 import RegistrarScreen from '../screens/RegistrarScreen';
 import HistoricoScreen from '../screens/HistoricoScreen';
 import PainelScreen from '../screens/PainelScreen';
+import PedidosScreen from '../screens/PedidosScreen';
 import EmBreve from '../screens/EmBreve';
 
 const Tab = createBottomTabNavigator();
 const MapaStack = createNativeStackNavigator();
 
 // Stubs estáveis (referência fixa) para telas ainda não construídas.
-const PedidosStub = () => <EmBreve titulo="Pedidos" />;
 const ContaStub = () => <EmBreve titulo="Conta" />;
 
 // A aba Mapa é um stack: Mapa → Ficha → Registrar → Histórico
@@ -32,7 +32,7 @@ export default function TabNavigator() {
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
       <Tab.Screen name="Mapa" component={MapaStackScreen} />
-      <Tab.Screen name="Pedidos" component={PedidosStub} />
+      <Tab.Screen name="Pedidos" component={PedidosScreen} />
       <Tab.Screen name="Painel" component={PainelScreen} />
       <Tab.Screen name="Conta" component={ContaStub} />
     </Tab.Navigator>

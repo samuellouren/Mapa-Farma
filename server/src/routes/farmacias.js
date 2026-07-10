@@ -4,6 +4,7 @@ import { autenticar } from '../middleware/auth.js';
 import { ah } from '../lib/asyncHandler.js';
 import { STATUS_VISITA, PERFIL_PAGAMENTO, PERFIL_COMPRA } from '../lib/enums.js';
 import { dentroDeMaceio } from '../lib/limite-maceio.js';
+import { avaliarExclusao } from '../lib/exclusao.js';
 
 export const farmaciasRouter = Router();
 farmaciasRouter.use(autenticar);
@@ -33,9 +34,15 @@ farmaciasRouter.get('/', ah(async (req, res) => {
   res.json(r.rows);
 }));
 
-// GET /farmacias/:id  (ficha)
+// GET /farmacias/:id  (ficha) — inclui contagem de vínculos p/ a exclusão
 farmaciasRouter.get('/:id(\\d+)', ah(async (req, res) => {
-  const r = await db.execute({ sql: 'SELECT * FROM farmacias WHERE id = ?', args: [req.params.id] });
+  const r = await db.execute({
+    sql: `SELECT f.*,
+            (SELECT COUNT(*) FROM relatorios_visita WHERE farmacia_id = f.id) AS relatorios_count,
+            (SELECT COUNT(*) FROM pedidos          WHERE farmacia_id = f.id) AS pedidos_count
+          FROM farmacias f WHERE f.id = ?`,
+    args: [req.params.id],
+  });
   if (!r.rows[0]) return res.status(404).json({ erro: 'Farmácia não encontrada' });
   res.json(r.rows[0]);
 }));
@@ -55,16 +62,32 @@ farmaciasRouter.post('/', ah(async (req, res) => {
     return res.status(400).json({ erro: 'Coordenada fora dos limites de Maceió' });
   }
   const ins = await db.execute({
-    sql: 'INSERT INTO farmacias (nome, endereco, bairro, latitude, longitude) VALUES (?,?,?,?,?)',
+    sql: 'INSERT INTO farmacias (nome, endereco, bairro, latitude, longitude, origem) VALUES (?,?,?,?,?, \'manual\')',
     args: [String(nome).trim(), endereco ?? null, bairro ?? null, lat, lng],
   });
   const r = await db.execute({ sql: 'SELECT * FROM farmacias WHERE id = ?', args: [ins.lastInsertRowid] });
   res.status(201).json(r.rows[0]);
 }));
 
-// PATCH /farmacias/:id  (campos de negócio: relação, visita, perfis)
+// PATCH /farmacias/:id
+//  - negócio (eh_cliente, status_visita, perfis): livre p/ qualquer farmácia.
+//  - identidade (nome, endereco, bairro, latitude, longitude): só origem='manual'.
 farmaciasRouter.patch('/:id', ah(async (req, res) => {
-  const { eh_cliente, status_visita, perfil_pagamento, perfil_compra } = req.body || {};
+  const b = req.body || {};
+  const { eh_cliente, status_visita, perfil_pagamento, perfil_compra,
+          nome, endereco, bairro, latitude, longitude } = b;
+
+  const CAMPOS_IDENTIDADE = ['nome', 'endereco', 'bairro', 'latitude', 'longitude'];
+  const temIdentidade = CAMPOS_IDENTIDADE.some((k) => b[k] !== undefined);
+
+  if (temIdentidade) {
+    const atual = await db.execute({ sql: 'SELECT origem FROM farmacias WHERE id = ?', args: [req.params.id] });
+    if (!atual.rows[0]) return res.status(404).json({ erro: 'Farmácia não encontrada' });
+    if (atual.rows[0].origem !== 'manual') {
+      return res.status(403).json({ erro: 'Só farmácias adicionadas manualmente podem ser editadas.' });
+    }
+  }
+
   const campos = [];
   const args = [];
 
@@ -83,6 +106,23 @@ farmaciasRouter.patch('/:id', ah(async (req, res) => {
       return res.status(400).json({ erro: 'perfil_compra inválido' });
     campos.push('perfil_compra = ?'); args.push(perfil_compra);
   }
+
+  if (nome !== undefined) {
+    if (!String(nome).trim()) return res.status(400).json({ erro: 'nome não pode ser vazio' });
+    campos.push('nome = ?'); args.push(String(nome).trim());
+  }
+  if (endereco !== undefined) { campos.push('endereco = ?'); args.push(endereco ? String(endereco).trim() : null); }
+  if (bairro !== undefined) { campos.push('bairro = ?'); args.push(bairro ? String(bairro).trim() : null); }
+  if (latitude !== undefined || longitude !== undefined) {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng))
+      return res.status(400).json({ erro: 'latitude e longitude devem ser numéricas' });
+    if (!dentroDeMaceio(lng, lat))
+      return res.status(400).json({ erro: 'Coordenada fora dos limites de Maceió' });
+    campos.push('latitude = ?', 'longitude = ?'); args.push(lat, lng);
+  }
+
   if (!campos.length) return res.status(400).json({ erro: 'Nada para atualizar' });
 
   args.push(req.params.id);
@@ -90,6 +130,33 @@ farmaciasRouter.patch('/:id', ah(async (req, res) => {
   const r = await db.execute({ sql: 'SELECT * FROM farmacias WHERE id = ?', args: [req.params.id] });
   if (!r.rows[0]) return res.status(404).json({ erro: 'Farmácia não encontrada' });
   res.json(r.rows[0]);
+}));
+
+// DELETE /farmacias/:id  — só manual; bloqueia se houver pedidos; cascata em visitas
+farmaciasRouter.delete('/:id(\\d+)', ah(async (req, res) => {
+  const r = await db.execute({
+    sql: `SELECT origem,
+            (SELECT COUNT(*) FROM relatorios_visita WHERE farmacia_id = ?) AS relatorios_count,
+            (SELECT COUNT(*) FROM pedidos          WHERE farmacia_id = ?) AS pedidos_count
+          FROM farmacias WHERE id = ?`,
+    args: [req.params.id, req.params.id, req.params.id],
+  });
+  const row = r.rows[0];
+  if (!row) return res.status(404).json({ erro: 'Farmácia não encontrada' });
+
+  const d = avaliarExclusao(row);
+  if (!d.permitido) {
+    if (d.motivo === 'nao_manual') {
+      return res.status(403).json({ erro: 'Só farmácias adicionadas manualmente podem ser excluídas.' });
+    }
+    return res.status(409).json({
+      erro: 'Esta farmácia tem pedidos registrados e não pode ser excluída (preserva o histórico de vendas).',
+      pedidos_count: row.pedidos_count,
+    });
+  }
+
+  await db.execute({ sql: 'DELETE FROM farmacias WHERE id = ?', args: [req.params.id] });
+  res.json({ ok: true, visitas_apagadas: d.apagaVisitas });
 }));
 
 // GET /farmacias/:id/relatorios  (timeline / histórico)

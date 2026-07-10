@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { cores, fontes } from '../theme';
 import { api } from '../api/client';
 import { PERFIL_PAGAMENTO, PERFIL_COMPRA } from '../lib/enums';
+import { formatarNomeFarmaciaCompacto } from '../lib/formato';
 
 const PERIODOS = [7, 30, 90];
 
@@ -34,8 +35,7 @@ function Ranking({ titulo, subtitulo, itens, render, vazio }) {
           <View key={it.id} style={styles.rankLinha}>
             <Text style={styles.rankNum}>{i + 1}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rankNome}>{it.nome}</Text>
-              {!!it.bairro && <Text style={styles.rankBairro}>{it.bairro}</Text>}
+              <Text style={styles.rankNome} numberOfLines={1}>{formatarNomeFarmaciaCompacto(it)}</Text>
             </View>
             {render(it)}
           </View>
@@ -151,7 +151,7 @@ export default function PainelScreen() {
                   return (
                     <View key={c.id} style={styles.porClienteLinha}>
                       <View style={[styles.legendaPonto, { backgroundColor: p.cor }]} />
-                      <Text style={styles.porClienteNome} numberOfLines={1}>{c.nome}</Text>
+                      <Text style={styles.porClienteNome} numberOfLines={1}>{formatarNomeFarmaciaCompacto(c)}</Text>
                       <Text style={[styles.porClienteTag, { color: p.cor }]}>{p.label}</Text>
                     </View>
                   );
@@ -206,7 +206,6 @@ const styles = StyleSheet.create({
   rankLinha: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: cores.borda },
   rankNum: { fontFamily: fontes.mono600, fontSize: 14, color: cores.textoFraco, width: 18 },
   rankNome: { fontSize: 14, fontWeight: '600', color: cores.texto },
-  rankBairro: { fontSize: 12, color: cores.textoMudo, marginTop: 1 },
   tag: { paddingVertical: 4, paddingHorizontal: 9, borderRadius: 20 },
   tagTexto: { fontSize: 11.5, fontWeight: '600' },
   desde: { fontFamily: fontes.mono600, fontSize: 13, color: cores.textoSuave },

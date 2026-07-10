@@ -53,4 +53,9 @@ export const api = {
 
   stats: (periodo) => request('/stats' + toQuery({ periodo })),
   usuarios: () => request('/usuarios'),
+
+  // Geocode reverso: coordenada → { endereco, bairro, dentro_maceio }.
+  reverseGeocode: (lat, lng) => request('/geo/reverse' + toQuery({ lat, lng })),
+  // Geocode direto (busca por endereço) → { resultados: [{label, latitude, longitude, endereco, bairro}] }.
+  buscarEndereco: (q) => request('/geo/buscar' + toQuery({ q })),
 };

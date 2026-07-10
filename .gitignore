@@ -1,31 +1,52 @@
-# Dependências
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
 node_modules/
 
-# Ambiente / segredos
-.env
-.env.local
-server/.env
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
 
-# Banco local (libSQL/SQLite)
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
-
-# Expo / React Native
-client/.expo/
-client/dist/
-client/web-build/
+# Native
+.kotlin/
 *.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
-# Logs
-*.log
+# Metro
+.metro-health-check*
+
+# debug
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# SO / editores
+# macOS
 .DS_Store
-Thumbs.db
-.vscode/
-.idea/
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# local database + backups
+*.db
+*.db.bak-*
+
+# secrets
+server/.env
+
+# Claude Code scratch (worktrees isoladas, ledger de execução)
+.claude/worktrees/
+.superpowers/

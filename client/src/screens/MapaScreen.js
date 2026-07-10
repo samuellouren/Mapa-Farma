@@ -10,30 +10,16 @@ import * as Location from 'expo-location';
 import { cores, fontes } from '../theme';
 import { api } from '../api/client';
 import { IconeBusca, IconeFiltro, IconeLocalizacao } from '../components/Icones';
+import { farmaciaMaisProxima } from '../lib/hitTest';
+import { OSM_STYLE, MACEIO, ZOOM_MAX } from '../lib/mapaConfig';
 import MarcadorFarmacia from '../components/MarcadorFarmacia';
 import BottomSheetFarmacia from '../components/BottomSheetFarmacia';
 import FiltroSheet from '../components/FiltroSheet';
 import NovaFarmaciaSheet from '../components/NovaFarmaciaSheet';
-
-// Maceió/AL como centro inicial (fallback se o GPS for negado/indisponível).
-const MACEIO = { center: [-35.7089, -9.6498], zoom: 11.5 };
+import SeletorLocalizacao from '../components/SeletorLocalizacao';
 
 // A partir deste zoom os marcadores mostram o nome da farmácia.
 const ZOOM_COM_NOMES = 14.5;
-
-// Estilo MapLibre com tiles OpenStreetMap — sem Google, sem chave de API.
-const OSM_STYLE = {
-  version: 8,
-  sources: {
-    osm: {
-      type: 'raster',
-      tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenStreetMap',
-    },
-  },
-  layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-};
 
 const FILTRO_VAZIO = { relacao: 'all', status_visita: 'all', perfil_pagamento: 'all' };
 
@@ -41,6 +27,9 @@ export default function MapaScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const cameraRef = useRef(null);
   const mapRef = useRef(null);
+  // Zoom atual, mantido pela onRegionDidChange. Usado pelo hit-test em JS do
+  // toque no marcador (converte o raio em pixels → metros no zoom vigente).
+  const zoomRef = useRef(MACEIO.zoom);
 
   const [farmacias, setFarmacias] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -50,7 +39,8 @@ export default function MapaScreen({ navigation }) {
   const [filtroAberto, setFiltroAberto] = useState(false);
   const [selecionada, setSelecionada] = useState(null);
   const [mostrarNomes, setMostrarNomes] = useState(false);
-  const [novaFarmacia, setNovaFarmacia] = useState(null); // {latitude, longitude} | null
+  const [seletor, setSeletor] = useState(null);          // {centro:[lng,lat], rascunho} | null
+  const [novaFarmacia, setNovaFarmacia] = useState(null); // {latitude, longitude, valoresIniciais} | null
   const [localizando, setLocalizando] = useState(false);
 
   // Só na montagem: abre centralizado na posição do vendedor (fallback: centro).
@@ -125,7 +115,18 @@ export default function MapaScreen({ navigation }) {
     }
   }
 
-  async function abrirNovaFarmacia() {
+  // Abre o seletor de mapa (pino central) centrado em `centro` ([lng, lat]).
+  // `rascunho` preserva o que já foi digitado no form quando o usuário clica
+  // "Ajustar" pra reposicionar o pino.
+  function abrirSeletor(centro, rascunho = null) {
+    setSelecionada(null);
+    setNovaFarmacia(null);
+    setSeletor({ centro, rascunho });
+  }
+
+  // FAB "+": abre o seletor no centro do mapa principal (já centrado no vendedor
+  // desde a montagem/botão de localização) — instantâneo, sem esperar GPS.
+  async function abrirSeletorPeloBotao() {
     let centro = MACEIO.center;
     try {
       const c = await mapRef.current?.getCenter();
@@ -133,8 +134,27 @@ export default function MapaScreen({ navigation }) {
     } catch {
       /* usa o centro padrão */
     }
-    setSelecionada(null);
-    setNovaFarmacia({ latitude: centro[1], longitude: centro[0] });
+    abrirSeletor(centro, null);
+  }
+
+  // Seletor confirmado → abre o form já com coordenada + endereço/bairro do
+  // geocode. Ao voltar de um "Ajustar", mantém o nome digitado; o endereço passa
+  // a refletir o novo ponto.
+  function confirmarLocal({ latitude, longitude, endereco, bairro }) {
+    const rascunho = seletor?.rascunho;
+    setSeletor(null);
+    setNovaFarmacia({
+      latitude,
+      longitude,
+      valoresIniciais: { nome: rascunho?.nome || '', endereco: endereco || '', bairro: bairro || '' },
+    });
+  }
+
+  // "Ajustar" no form → reabre o seletor no ponto atual, guardando o rascunho.
+  function ajustarLocal({ nome, endereco, bairro }) {
+    const { latitude, longitude } = novaFarmacia;
+    setNovaFarmacia(null);
+    setSeletor({ centro: [longitude, latitude], rascunho: { nome, endereco, bairro } });
   }
 
   function abrirRota(f) {
@@ -188,15 +208,27 @@ export default function MapaScreen({ navigation }) {
           ref={mapRef}
           style={{ flex: 1 }}
           mapStyle={OSM_STYLE}
-          onPress={() => setSelecionada(null)}
+          doubleTapZoom={false}
+          onPress={(e) => {
+            // O onPress do <Marker> nativo (RectF de getContentSize) falha em
+            // acertar o toque em zoom normal no Android — quando erra, o clique
+            // "cai" aqui, no onPress do mapa. Fazemos o hit-test em JS: acha a
+            // farmácia mais próxima do ponto tocado; se nenhuma dentro do raio,
+            // fecha o sheet. Cobre o toque que o nativo deixa passar.
+            const [lng, lat] = e.nativeEvent.lngLat;
+            const alvo = farmaciaMaisProxima(farmacias, lng, lat, zoomRef.current);
+            setSelecionada(alvo || null);
+          }}
           onLongPress={(e) => {
             const [lng, lat] = e.nativeEvent.lngLat;
-            setSelecionada(null);
-            setNovaFarmacia({ latitude: lat, longitude: lng });
+            abrirSeletor([lng, lat], null);
           }}
-          onRegionDidChange={(e) => setMostrarNomes(e.nativeEvent.zoom >= ZOOM_COM_NOMES)}
+          onRegionDidChange={(e) => {
+            zoomRef.current = e.nativeEvent.zoom;
+            setMostrarNomes(e.nativeEvent.zoom >= ZOOM_COM_NOMES);
+          }}
         >
-          <Camera ref={cameraRef} initialViewState={MACEIO} />
+          <Camera ref={cameraRef} initialViewState={MACEIO} maxZoom={ZOOM_MAX} />
           <UserLocation visible />
           {farmacias.map((f) =>
             f.latitude != null && f.longitude != null ? (
@@ -231,7 +263,7 @@ export default function MapaScreen({ navigation }) {
         </View>
 
         {/* adicionar farmácia */}
-        <TouchableOpacity style={styles.btnAdicionar} onPress={abrirNovaFarmacia} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.btnAdicionar} onPress={abrirSeletorPeloBotao} activeOpacity={0.85}>
           <Text style={styles.btnAdicionarTexto}>+</Text>
         </TouchableOpacity>
 
@@ -276,9 +308,19 @@ export default function MapaScreen({ navigation }) {
         contagem={correspondentes.length}
       />
 
+      {seletor && (
+        <SeletorLocalizacao
+          centroInicial={seletor.centro}
+          onCancelar={() => setSeletor(null)}
+          onConfirmar={confirmarLocal}
+        />
+      )}
+
       {novaFarmacia && (
         <NovaFarmaciaSheet
           coordenada={novaFarmacia}
+          valoresIniciais={novaFarmacia.valoresIniciais}
+          onAjustarLocal={ajustarLocal}
           onFechar={() => setNovaFarmacia(null)}
           onCriada={(f) => {
             setNovaFarmacia(null);

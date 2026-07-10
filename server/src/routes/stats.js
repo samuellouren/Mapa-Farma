@@ -67,7 +67,7 @@ statsRouter.get('/', ah(async (req, res) => {
   const perfilPagamentoClientes = linhas
     .filter((f) => f.perfil_pagamento)
     .sort((a, b) => a.nome.localeCompare(b.nome))
-    .map((f) => ({ id: f.id, nome: f.nome, perfil_pagamento: f.perfil_pagamento }));
+    .map((f) => ({ id: f.id, nome: f.nome, bairro: f.bairro, perfil_pagamento: f.perfil_pagamento }));
 
   res.json({
     periodo,

@@ -7,6 +7,7 @@ import { farmaciasRouter } from './routes/farmacias.js';
 import { pedidosRouter } from './routes/pedidos.js';
 import { statsRouter } from './routes/stats.js';
 import { usuariosRouter } from './routes/usuarios.js';
+import { geoRouter } from './routes/geo.js';
 
 const app = express();
 app.use(cors());
@@ -20,6 +21,7 @@ app.use('/farmacias', farmaciasRouter);
 app.use('/pedidos', pedidosRouter);
 app.use('/stats', statsRouter);
 app.use('/usuarios', usuariosRouter);
+app.use('/geo', geoRouter);
 
 // Middleware de erro (recebe erros dos handlers async via asyncHandler)
 app.use((err, req, res, next) => {

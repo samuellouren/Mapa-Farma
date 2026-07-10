@@ -32,6 +32,40 @@ export function dataCurtaMes(iso) {
   return `${d} ${MESES_ABREV[Number(m) - 1]} ${a}`;
 }
 
+// Junta partes de texto com ' · ', pulando vazios/nulos/só-espaço. Base comum
+// dos formatos de farmácia — nunca gera "undefined" nem separador sobrando.
+function juntarComPonto(partes) {
+  return partes
+    .map((parte) => (parte == null ? '' : String(parte).trim()))
+    .filter(Boolean)
+    .join(' · ');
+}
+
+// Nome identificável da farmácia p/ listas e seletores. Junta nome, bairro e
+// rua ("Pague Menos · Ponta Verde · Av. Fernandes Lima") — desambigua filiais de
+// mesmo nome. Quando o seed só tem o nome (bairro/endereço vazios, comum no
+// Overpass/CNES), devolve só o nome.
+export function formatarNomeFarmacia(farmacia) {
+  if (!farmacia) return '';
+  return juntarComPonto([farmacia.nome, farmacia.bairro, farmacia.endereco]);
+}
+
+// Versão compacta (nome + bairro, sem rua) p/ listas apertadas com valor na
+// lateral (ex.: rankings do Painel). O bairro sozinho já resolve a maior parte
+// da ambiguidade entre filiais e cabe melhor no espaço.
+export function formatarNomeFarmaciaCompacto(farmacia) {
+  if (!farmacia) return '';
+  return juntarComPonto([farmacia.nome, farmacia.bairro]);
+}
+
+// Só o endereço (bairro + rua, sem o nome) p/ telas de detalhe onde o nome já
+// aparece em destaque separado — ex.: header da Ficha. Mesma ordem/lógica das
+// funções acima; devolve '' quando não há bairro nem rua (não renderiza linha).
+export function formatarEnderecoFarmacia(farmacia) {
+  if (!farmacia) return '';
+  return juntarComPonto([farmacia.bairro, farmacia.endereco]);
+}
+
 // 'Ricardo Cavalcante' → 'RC'
 export function iniciais(nome) {
   const p = String(nome || '').trim().split(/\s+/);

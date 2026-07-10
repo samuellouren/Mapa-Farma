@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { cores } from '../theme';
 import { api } from '../api/client';
 import { STATUS_VISITA, PERFIL_PAGAMENTO, PERFIL_COMPRA } from '../lib/enums';
-import { dataCurta, duracaoLabel } from '../lib/formato';
+import { dataCurta, duracaoLabel, formatarEnderecoFarmacia } from '../lib/formato';
 import SegmentedControl from '../components/SegmentedControl';
 import { IconeVoltar, IconeRota } from '../components/Icones';
 
@@ -102,8 +102,10 @@ export default function FichaScreen({ navigation, route }) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.nome}>{farmacia.nome}</Text>
-              {!!farmacia.endereco && <Text style={styles.sub}>{farmacia.endereco}</Text>}
-              {!!farmacia.bairro && <Text style={styles.sub}>{farmacia.bairro}</Text>}
+              {(() => {
+                const endereco = formatarEnderecoFarmacia(farmacia);
+                return endereco ? <Text style={styles.sub}>{endereco}</Text> : null;
+              })()}
             </View>
           </View>
           <TouchableOpacity style={styles.botaoRota} onPress={abrirRota} activeOpacity={0.8}>

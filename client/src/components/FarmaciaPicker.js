@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { cores } from '../theme';
+import { formatarNomeFarmacia } from '../lib/formato';
 
 // Seletor de farmácia: pressable que abre um modal com busca + lista.
 // Substitui o <select> do design (não existe nativo em RN).
@@ -15,14 +16,16 @@ export default function FarmaciaPicker({ farmacias, valor, onSelecionar, placeho
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
     if (!q) return farmacias;
-    return farmacias.filter((f) => `${f.nome} ${f.bairro || ''}`.toLowerCase().includes(q));
+    return farmacias.filter((f) =>
+      `${f.nome} ${f.bairro || ''} ${f.endereco || ''}`.toLowerCase().includes(q)
+    );
   }, [farmacias, busca]);
 
   return (
     <>
       <TouchableOpacity style={styles.campo} onPress={() => setAberto(true)} activeOpacity={0.8}>
         <Text style={[styles.campoTexto, !valor && styles.campoPlaceholder]} numberOfLines={1}>
-          {valor ? valor.nome : placeholder}
+          {valor ? formatarNomeFarmacia(valor) : placeholder}
         </Text>
         <Text style={styles.seta}>▾</Text>
       </TouchableOpacity>
@@ -50,8 +53,7 @@ export default function FarmaciaPicker({ farmacias, valor, onSelecionar, placeho
                 onPress={() => { onSelecionar(item); setAberto(false); setBusca(''); }}
                 activeOpacity={0.7}
               >
-                <Text style={styles.itemNome}>{item.nome}</Text>
-                {!!item.bairro && <Text style={styles.itemBairro}>{item.bairro}</Text>}
+                <Text style={styles.itemNome} numberOfLines={2}>{formatarNomeFarmacia(item)}</Text>
               </TouchableOpacity>
             )}
             ListEmptyComponent={<Text style={styles.vazio}>Nenhuma farmácia encontrada.</Text>}
@@ -78,7 +80,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, fontSize: 15, color: cores.texto, marginBottom: 8,
   },
   item: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: cores.borda },
-  itemNome: { fontSize: 15, fontWeight: '600', color: cores.texto },
-  itemBairro: { fontSize: 12.5, color: cores.textoMudo, marginTop: 1 },
+  itemNome: { fontSize: 15, fontWeight: '600', color: cores.texto, lineHeight: 20 },
   vazio: { fontSize: 14, color: cores.textoFraco, textAlign: 'center', paddingVertical: 24 },
 });

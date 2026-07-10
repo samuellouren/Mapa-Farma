@@ -66,7 +66,7 @@ for (const el of elementos) {
   const bairro = t['addr:suburb'] || t['addr:neighbourhood'] || t['addr:district'] || null;
 
   await db.execute({
-    sql: 'INSERT INTO farmacias (nome, endereco, bairro, latitude, longitude) VALUES (?,?,?,?,?)',
+    sql: 'INSERT INTO farmacias (nome, endereco, bairro, latitude, longitude, origem) VALUES (?,?,?,?,?, \'seed\')',
     args: [nome, endereco, bairro, lat, lon],
   });
   inseridas++;

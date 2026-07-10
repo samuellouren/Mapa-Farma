@@ -26,6 +26,7 @@ cliente, não reabrir sem confirmar).
 | status_visita | text | `nao_visitada` \| `a_visitar` \| `visitada` |
 | perfil_pagamento | text \| null | `paga_em_dia` \| `atrasa` \| `nao_paga` — MANUAL, o vendedor marca; não é calculado a partir dos pedidos (ver seção Fase 2) |
 | perfil_compra | text \| null | `compra_bem` \| `compra_pouco` \| `nao_compra` — manual |
+| origem | text | `overpass` \| `cnes` \| `manual` \| `seed` — quem inseriu a farmácia. Só `manual` (cadastro pela equipe) pode ser editada/excluída. Seeds gravam `seed`; registros pré-migration `002` viraram `seed` no backfill. `overpass`/`cnes` reservados p/ re-derivação futura |
 | criado_em | datetime | |
 
 ## Tabela: relatorios_visita

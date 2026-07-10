@@ -141,7 +141,7 @@ for (const c of cnes) {
     let novoId = -1;
     if (!dry) {
       const ins = await db.execute({
-        sql: 'INSERT INTO farmacias (nome, endereco, bairro, latitude, longitude) VALUES (?,?,?,?,?)',
+        sql: 'INSERT INTO farmacias (nome, endereco, bairro, latitude, longitude, origem) VALUES (?,?,?,?,?, \'seed\')',
         args: [nome, endereco, bairro, lat, lon],
       });
       novoId = ins.lastInsertRowid;

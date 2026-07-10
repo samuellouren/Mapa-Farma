@@ -322,7 +322,7 @@ export default function MapaScreen({ navigation }) {
           valoresIniciais={novaFarmacia.valoresIniciais}
           onAjustarLocal={ajustarLocal}
           onFechar={() => setNovaFarmacia(null)}
-          onCriada={(f) => {
+          onSalvo={(f) => {
             setNovaFarmacia(null);
             setFarmacias((prev) => [...prev, f]);
             setSelecionada(f);

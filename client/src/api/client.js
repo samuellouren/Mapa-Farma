@@ -44,6 +44,7 @@ export const api = {
   farmacia: (id) => request(`/farmacias/${id}`),
   criarFarmacia: (dados) => request('/farmacias', { method: 'POST', body: dados }),
   atualizarFarmacia: (id, patch) => request(`/farmacias/${id}`, { method: 'PATCH', body: patch }),
+  excluirFarmacia: (id) => request(`/farmacias/${id}`, { method: 'DELETE' }),
   relatorios: (id) => request(`/farmacias/${id}/relatorios`),
   registrarRelatorio: (id, dados) => request(`/farmacias/${id}/relatorios`, { method: 'POST', body: dados }),
 

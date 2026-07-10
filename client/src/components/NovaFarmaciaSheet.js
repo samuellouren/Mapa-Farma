@@ -12,7 +12,7 @@ import { dentroDaBboxMaceio } from '../lib/mapaConfig';
 // do seletor de mapa (SeletorLocalizacao), que também pré-preenche endereço/
 // bairro por geocode reverso. Aqui os números lat/lng só existem por trás; o
 // usuário vê "localização definida no mapa" e pode reabrir o seletor p/ ajustar.
-export default function NovaFarmaciaSheet({ coordenada, valoresIniciais = {}, onFechar, onCriada, onAjustarLocal }) {
+export default function NovaFarmaciaSheet({ modo = 'criar', idAlvo = null, coordenada, valoresIniciais = {}, onFechar, onSalvo, onAjustarLocal }) {
   const insets = useSafeAreaInsets();
   const alturaTeclado = useAlturaTeclado();
   const [nome, setNome] = useState(valoresIniciais.nome || '');
@@ -32,14 +32,17 @@ export default function NovaFarmaciaSheet({ coordenada, valoresIniciais = {}, on
     setErro('');
     setSalvando(true);
     try {
-      const f = await api.criarFarmacia({
+      const dados = {
         nome: nome.trim(),
         endereco: endereco.trim() || null,
         bairro: bairro.trim() || null,
         latitude,
         longitude,
-      });
-      onCriada(f);
+      };
+      const f = modo === 'editar'
+        ? await api.atualizarFarmacia(idAlvo, dados)
+        : await api.criarFarmacia(dados);
+      onSalvo(f);
     } catch (e) {
       setErro(e.message || 'Não foi possível salvar.');
       setSalvando(false);
@@ -52,7 +55,7 @@ export default function NovaFarmaciaSheet({ coordenada, valoresIniciais = {}, on
         <Pressable style={styles.backdrop} onPress={onFechar} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 22, marginBottom: alturaTeclado }]}>
           <View style={styles.puxador} />
-          <Text style={styles.titulo}>Nova farmácia</Text>
+          <Text style={styles.titulo}>{modo === 'editar' ? 'Editar farmácia' : 'Nova farmácia'}</Text>
 
           {/* localização definida no mapa (lat/lng ocultos) */}
           <View style={styles.local}>
@@ -79,7 +82,9 @@ export default function NovaFarmaciaSheet({ coordenada, valoresIniciais = {}, on
           {!!erro && <Text style={styles.erro}>{erro}</Text>}
 
           <TouchableOpacity style={[styles.botao, salvando && { opacity: 0.6 }]} onPress={salvar} disabled={salvando} activeOpacity={0.85}>
-            <Text style={styles.botaoTexto}>{salvando ? 'Salvando…' : 'Salvar farmácia'}</Text>
+            <Text style={styles.botaoTexto}>
+              {salvando ? 'Salvando…' : (modo === 'editar' ? 'Salvar alterações' : 'Salvar farmácia')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

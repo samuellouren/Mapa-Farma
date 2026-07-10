@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  ActivityIndicator, Linking, Platform,
+  ActivityIndicator, Linking, Platform, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -11,6 +11,8 @@ import { STATUS_VISITA, PERFIL_PAGAMENTO, PERFIL_COMPRA } from '../lib/enums';
 import { dataCurta, duracaoLabel, formatarEnderecoFarmacia } from '../lib/formato';
 import SegmentedControl from '../components/SegmentedControl';
 import { IconeVoltar, IconeRota } from '../components/Icones';
+import NovaFarmaciaSheet from '../components/NovaFarmaciaSheet';
+import SeletorLocalizacao from '../components/SeletorLocalizacao';
 
 const SEG_VISITA = Object.entries(STATUS_VISITA).map(([v, { label }]) => [v, label]);
 const SEG_PAGAMENTO = Object.entries(PERFIL_PAGAMENTO).map(([v, { label }]) => [v, label]);
@@ -22,6 +24,8 @@ export default function FichaScreen({ navigation, route }) {
   const [farmacia, setFarmacia] = useState(null);
   const [relatorios, setRelatorios] = useState([]);
   const [erro, setErro] = useState('');
+  const [edicao, setEdicao] = useState(null); // { coordenada:{latitude,longitude}, valores:{nome,endereco,bairro} }
+  const [seletor, setSeletor] = useState(null); // { centro:[lng,lat], rascunho:{nome,endereco,bairro} }
 
   // Recarrega ao ganhar foco (inclusive na volta do Registrar).
   useFocusEffect(
@@ -58,6 +62,44 @@ export default function FichaScreen({ navigation, route }) {
       default: `https://www.google.com/maps/dir/?api=1&destination=${farmacia.latitude},${farmacia.longitude}`,
     });
     Linking.openURL(url);
+  }
+
+  function abrirEdicao() {
+    setEdicao({
+      coordenada: { latitude: farmacia.latitude, longitude: farmacia.longitude },
+      valores: { nome: farmacia.nome, endereco: farmacia.endereco || '', bairro: farmacia.bairro || '' },
+    });
+  }
+
+  function excluir() {
+    const nPed = farmacia.pedidos_count || 0;
+    const nVis = farmacia.relatorios_count || 0;
+    if (nPed > 0) {
+      Alert.alert(
+        'Não é possível excluir',
+        `Esta farmácia tem ${nPed} pedido(s) registrado(s). Edite os dados se precisar corrigir.`,
+        [{ text: 'Entendi' }]
+      );
+      return;
+    }
+    const msg = nVis > 0
+      ? `Isso também apagará ${nVis} visita(s) registrada(s). Não pode ser desfeito.`
+      : 'Isso não pode ser desfeito.';
+    Alert.alert('Excluir farmácia?', msg, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.excluirFarmacia(id);
+            navigation.goBack();
+          } catch (e) {
+            Alert.alert('Erro', e.message || 'Não foi possível excluir.');
+          }
+        },
+      },
+    ]);
   }
 
   if (!farmacia) {
@@ -175,7 +217,58 @@ export default function FichaScreen({ navigation, route }) {
             </View>
           ))}
         </View>
+
+        {farmacia.origem === 'manual' && (
+          <View style={styles.acoesManual}>
+            <TouchableOpacity onPress={abrirEdicao} activeOpacity={0.7}>
+              <Text style={styles.acaoEditar}>Editar dados</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={excluir} activeOpacity={0.7}>
+              <Text style={styles.acaoExcluir}>Excluir farmácia</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
+
+      {edicao && (
+        <NovaFarmaciaSheet
+          modo="editar"
+          idAlvo={id}
+          coordenada={edicao.coordenada}
+          valoresIniciais={edicao.valores}
+          onAjustarLocal={({ nome, endereco, bairro }) => {
+            setSeletor({
+              centro: [edicao.coordenada.longitude, edicao.coordenada.latitude],
+              rascunho: { nome, endereco, bairro },
+            });
+            setEdicao(null);
+          }}
+          onFechar={() => setEdicao(null)}
+          onSalvo={(f) => { setEdicao(null); setFarmacia((prev) => ({ ...prev, ...f })); }}
+        />
+      )}
+
+      {seletor && (
+        <SeletorLocalizacao
+          centroInicial={seletor.centro}
+          onCancelar={() => {
+            // volta pro sheet com o rascunho e a coordenada anteriores
+            setEdicao({
+              coordenada: { latitude: seletor.centro[1], longitude: seletor.centro[0] },
+              valores: seletor.rascunho,
+            });
+            setSeletor(null);
+          }}
+          onConfirmar={({ latitude, longitude, endereco, bairro }) => {
+            const rascunho = seletor.rascunho;
+            setSeletor(null);
+            setEdicao({
+              coordenada: { latitude, longitude },
+              valores: { nome: rascunho?.nome || '', endereco: endereco || '', bairro: bairro || '' },
+            });
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -240,4 +333,10 @@ const styles = StyleSheet.create({
   relatorioNota: { fontSize: 13.5, color: cores.textoSuave, lineHeight: 19 },
   relatorioPor: { fontSize: 12, color: cores.textoFraco, marginTop: 4 },
   erroTexto: { color: cores.vermelho, fontSize: 13, fontWeight: '600', marginTop: 10 },
+  acoesManual: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 6, paddingTop: 2, paddingBottom: 4,
+  },
+  acaoEditar: { fontSize: 14, fontWeight: '600', color: cores.textoSuave },
+  acaoExcluir: { fontSize: 14, fontWeight: '600', color: cores.vermelho },
 });

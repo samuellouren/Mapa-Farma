@@ -46,6 +46,7 @@ yarn-error.*
 
 # secrets
 server/.env
+server/src/seed/usuarios.js
 
 # Claude Code scratch (worktrees isoladas, ledger de execução)
 .claude/worktrees/

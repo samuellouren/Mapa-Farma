@@ -43,12 +43,46 @@ pedidosRouter.post('/', ah(async (req, res) => {
   res.status(201).json(r.rows[0]);
 }));
 
-// PATCH /pedidos/:id  { status_pagamento }
+// PATCH /pedidos/:id  { status_pagamento?, valor_centavos?, farmacia_id? }
+// Aplica só os campos presentes. data_pedido é imutável (não aceito).
 pedidosRouter.patch('/:id', ah(async (req, res) => {
-  const { status_pagamento } = req.body || {};
-  if (!STATUS_PAGAMENTO.includes(status_pagamento)) return res.status(400).json({ erro: 'status_pagamento inválido' });
-  await db.execute({ sql: 'UPDATE pedidos SET status_pagamento = ? WHERE id = ?', args: [status_pagamento, req.params.id] });
-  const r = await db.execute({ sql: 'SELECT * FROM pedidos WHERE id = ?', args: [req.params.id] });
+  const b = req.body || {};
+  const { status_pagamento, valor_centavos, farmacia_id } = b;
+  const campos = [];
+  const args = [];
+
+  if (status_pagamento !== undefined) {
+    if (!STATUS_PAGAMENTO.includes(status_pagamento)) return res.status(400).json({ erro: 'status_pagamento inválido' });
+    campos.push('status_pagamento = ?'); args.push(status_pagamento);
+  }
+  if (valor_centavos !== undefined) {
+    if (!Number.isInteger(valor_centavos) || valor_centavos <= 0) {
+      return res.status(400).json({ erro: 'valor_centavos deve ser inteiro em centavos maior que zero' });
+    }
+    campos.push('valor_centavos = ?'); args.push(valor_centavos);
+  }
+  if (farmacia_id !== undefined) {
+    const far = await db.execute({ sql: 'SELECT id FROM farmacias WHERE id = ?', args: [farmacia_id] });
+    if (!far.rows[0]) return res.status(404).json({ erro: 'Farmácia não encontrada' });
+    campos.push('farmacia_id = ?'); args.push(farmacia_id);
+  }
+  if (!campos.length) return res.status(400).json({ erro: 'Nada para atualizar' });
+
+  args.push(req.params.id);
+  await db.execute({ sql: `UPDATE pedidos SET ${campos.join(', ')} WHERE id = ?`, args });
+  const r = await db.execute({
+    sql: `SELECT p.*, f.nome AS farmacia_nome, f.bairro AS farmacia_bairro
+          FROM pedidos p JOIN farmacias f ON f.id = p.farmacia_id WHERE p.id = ?`,
+    args: [req.params.id],
+  });
   if (!r.rows[0]) return res.status(404).json({ erro: 'Pedido não encontrado' });
   res.json(r.rows[0]);
+}));
+
+// DELETE /pedidos/:id  — pedido é registro-folha, sem cascade
+pedidosRouter.delete('/:id(\\d+)', ah(async (req, res) => {
+  const r = await db.execute({ sql: 'SELECT id FROM pedidos WHERE id = ?', args: [req.params.id] });
+  if (!r.rows[0]) return res.status(404).json({ erro: 'Pedido não encontrado' });
+  await db.execute({ sql: 'DELETE FROM pedidos WHERE id = ?', args: [req.params.id] });
+  res.json({ ok: true });
 }));

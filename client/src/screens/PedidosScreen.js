@@ -1,11 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { cores, fontes } from '../theme';
 import { api } from '../api/client';
 import { STATUS_PAGAMENTO } from '../lib/enums';
-import { moedaBRL, dataCurtaMes } from '../lib/formato';
+import { moedaBRL, dataCurtaMes, centavosParaInput } from '../lib/formato';
 import NovoPedidoSheet from '../components/NovoPedidoSheet';
 
 const SEG_STATUS = Object.entries(STATUS_PAGAMENTO).map(([v, { label }]) => [v, label]);
@@ -40,6 +40,7 @@ export default function PedidosScreen() {
   const [farmacias, setFarmacias] = useState([]);
   const [modoGrafico, setModoGrafico] = useState('mes');
   const [novoAberto, setNovoAberto] = useState(false);
+  const [editando, setEditando] = useState(null); // pedido em edição | null
   const [erro, setErro] = useState('');
 
   useFocusEffect(
@@ -81,6 +82,36 @@ export default function PedidosScreen() {
       setPedidos(anterior);
       setErro('Não foi possível atualizar o status.');
     }
+  }
+
+  function menuPedido(p) {
+    Alert.alert(
+      p.farmacia_nome,
+      `${moedaBRL(p.valor_centavos)} · ${dataCurtaMes(p.data_pedido)}`,
+      [
+        { text: 'Editar', onPress: () => setEditando(p) },
+        { text: 'Excluir', style: 'destructive', onPress: () => confirmarExcluir(p) },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
+  }
+
+  function confirmarExcluir(p) {
+    Alert.alert('Excluir pedido?', 'Isso não pode ser desfeito.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.excluirPedido(p.id);
+            setPedidos((prev) => prev.filter((x) => x.id !== p.id));
+          } catch {
+            setErro('Não foi possível excluir o pedido.');
+          }
+        },
+      },
+    ]);
   }
 
   return (
@@ -148,7 +179,7 @@ export default function PedidosScreen() {
           <Text style={styles.secaoTitulo}>Pedidos recentes</Text>
           {pedidos.length === 0 && <Text style={styles.vazio}>Nenhum pedido registrado ainda.</Text>}
           {pedidos.map((p) => (
-            <View key={p.id} style={styles.pedido}>
+            <Pressable key={p.id} style={styles.pedido} onLongPress={() => menuPedido(p)} delayLongPress={350}>
               <View style={styles.pedidoTopo}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.pedidoNome} numberOfLines={1}>{p.farmacia_nome}</Text>
@@ -166,7 +197,7 @@ export default function PedidosScreen() {
                   );
                 })}
               </View>
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
       )}
@@ -178,6 +209,26 @@ export default function PedidosScreen() {
           onSalvo={(p) => {
             setNovoAberto(false);
             setPedidos((prev) => [p, ...(prev || [])]);
+          }}
+        />
+      )}
+
+      {editando && (
+        <NovoPedidoSheet
+          modo="editar"
+          idAlvo={editando.id}
+          farmacias={farmacias}
+          valoresIniciais={{
+            farmacia: farmacias.find((f) => f.id === editando.farmacia_id)
+              || { id: editando.farmacia_id, nome: editando.farmacia_nome, bairro: editando.farmacia_bairro },
+            valor: centavosParaInput(editando.valor_centavos),
+            status: editando.status_pagamento,
+            data: editando.data_pedido,
+          }}
+          onFechar={() => setEditando(null)}
+          onSalvo={(p) => {
+            setEditando(null);
+            setPedidos((prev) => prev.map((x) => (x.id === p.id ? p : x)));
           }}
         />
       )}

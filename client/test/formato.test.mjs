@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  formatarNomeFarmacia, formatarNomeFarmaciaCompacto, formatarEnderecoFarmacia,
+  formatarNomeFarmacia, formatarNomeFarmaciaCompacto, formatarEnderecoFarmacia, centavosParaInput,
 } from '../src/lib/formato.js';
 
 test('regra 1: nome + bairro + endereço → mostra os três', () => {
@@ -54,4 +54,25 @@ test('endereço: só bairro, ou só rua, ou nada', () => {
   assert.equal(formatarEnderecoFarmacia({ nome: 'X', endereco: 'Rua Y' }), 'Rua Y');
   assert.equal(formatarEnderecoFarmacia({ nome: 'X' }), '');
   assert.equal(formatarEnderecoFarmacia(null), '');
+});
+
+test('centavosParaInput: centavos → string com vírgula decimal, sem milhar', () => {
+  assert.equal(centavosParaInput(123456), '1234,56');
+  assert.equal(centavosParaInput(100), '1,00');
+  assert.equal(centavosParaInput(5), '0,05');
+  assert.equal(centavosParaInput(0), '0,00');
+});
+
+test('centavosParaInput: round-trip com o parser do sheet', () => {
+  // parser equivalente ao centavosDe do NovoPedidoSheet
+  const centavosDe = (texto) => {
+    let s = String(texto).replace(/[^\d.,]/g, '');
+    if (!s) return null;
+    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+    const n = Number(s);
+    return Number.isFinite(n) ? Math.round(n * 100) : null;
+  };
+  for (const c of [1, 5, 100, 999, 123456, 1000000]) {
+    assert.equal(centavosDe(centavosParaInput(c)), c);
+  }
 });

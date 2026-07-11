@@ -25,6 +25,13 @@ export function moedaBRL(centavos) {
   return 'R$ ' + int.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec;
 }
 
+// centavos (inteiro) → string editável 'inteiro,decimais' (sem separador de
+// milhar), no formato que o parser de valor do NovoPedidoSheet aceita de volta.
+// Ex.: 123456 → '1234,56'. Usado para pré-preencher o campo ao editar um pedido.
+export function centavosParaInput(centavos) {
+  return (Number(centavos || 0) / 100).toFixed(2).replace('.', ',');
+}
+
 // 'AAAA-MM-DD...' → '07 jul 2026'
 export function dataCurtaMes(iso) {
   if (!iso) return '';

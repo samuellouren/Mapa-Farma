@@ -175,7 +175,7 @@ export default function PedidosScreen() {
         <NovoPedidoSheet
           farmacias={farmacias}
           onFechar={() => setNovoAberto(false)}
-          onCriado={(p) => {
+          onSalvo={(p) => {
             setNovoAberto(false);
             setPedidos((prev) => [p, ...(prev || [])]);
           }}

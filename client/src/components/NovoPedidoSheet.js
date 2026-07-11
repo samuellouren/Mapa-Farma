@@ -21,16 +21,18 @@ function centavosDe(texto) {
   return Number.isFinite(n) ? Math.round(n * 100) : null;
 }
 
-export default function NovoPedidoSheet({ farmacias, onFechar, onCriado }) {
+export default function NovoPedidoSheet({ modo = 'criar', idAlvo = null, farmacias, valoresIniciais = {}, onFechar, onSalvo }) {
   const insets = useSafeAreaInsets();
   const alturaTeclado = useAlturaTeclado();
-  const [farmacia, setFarmacia] = useState(null);
-  const [valor, setValor] = useState('');
-  const [status, setStatus] = useState('pago');
+  const [farmacia, setFarmacia] = useState(valoresIniciais.farmacia || null);
+  const [valor, setValor] = useState(valoresIniciais.valor || '');
+  const [status, setStatus] = useState(valoresIniciais.status || 'pago');
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
 
-  const hoje = dataCurtaMes(new Date().toISOString());
+  const subtitulo = modo === 'editar'
+    ? `Registrado em ${dataCurtaMes(valoresIniciais.data)}`
+    : `Registrado em ${dataCurtaMes(new Date().toISOString())}`;
 
   async function salvar() {
     if (!farmacia) return setErro('Selecione a farmácia.');
@@ -39,12 +41,11 @@ export default function NovoPedidoSheet({ farmacias, onFechar, onCriado }) {
     setErro('');
     setSalvando(true);
     try {
-      const p = await api.criarPedido({
-        farmacia_id: farmacia.id,
-        valor_centavos: centavos,
-        status_pagamento: status,
-      });
-      onCriado(p);
+      const dados = { farmacia_id: farmacia.id, valor_centavos: centavos, status_pagamento: status };
+      const p = modo === 'editar'
+        ? await api.atualizarPedido(idAlvo, dados)
+        : await api.criarPedido(dados);
+      onSalvo(p);
     } catch (e) {
       setErro(e.message || 'Não foi possível salvar o pedido.');
       setSalvando(false);
@@ -57,8 +58,8 @@ export default function NovoPedidoSheet({ farmacias, onFechar, onCriado }) {
         <Pressable style={styles.backdrop} onPress={onFechar} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 22, marginBottom: alturaTeclado }]}>
           <View style={styles.puxador} />
-          <Text style={styles.titulo}>Novo pedido</Text>
-          <Text style={styles.subtitulo}>Registrado em {hoje}</Text>
+          <Text style={styles.titulo}>{modo === 'editar' ? 'Editar pedido' : 'Novo pedido'}</Text>
+          <Text style={styles.subtitulo}>{subtitulo}</Text>
 
           <Text style={styles.label}>Farmácia</Text>
           <FarmaciaPicker farmacias={farmacias} valor={farmacia} onSelecionar={setFarmacia} />
@@ -93,7 +94,9 @@ export default function NovoPedidoSheet({ farmacias, onFechar, onCriado }) {
           {!!erro && <Text style={styles.erro}>{erro}</Text>}
 
           <TouchableOpacity style={[styles.botao, salvando && { opacity: 0.6 }]} onPress={salvar} disabled={salvando} activeOpacity={0.85}>
-            <Text style={styles.botaoTexto}>{salvando ? 'Salvando…' : 'Salvar pedido'}</Text>
+            <Text style={styles.botaoTexto}>
+              {salvando ? 'Salvando…' : (modo === 'editar' ? 'Salvar alterações' : 'Salvar pedido')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

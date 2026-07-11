@@ -51,6 +51,7 @@ export const api = {
   listarPedidos: () => request('/pedidos'),
   criarPedido: (dados) => request('/pedidos', { method: 'POST', body: dados }),
   atualizarPedido: (id, patch) => request(`/pedidos/${id}`, { method: 'PATCH', body: patch }),
+  excluirPedido: (id) => request(`/pedidos/${id}`, { method: 'DELETE' }),
 
   stats: (periodo) => request('/stats' + toQuery({ periodo })),
   usuarios: () => request('/usuarios'),

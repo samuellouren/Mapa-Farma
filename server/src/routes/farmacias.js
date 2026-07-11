@@ -155,8 +155,39 @@ farmaciasRouter.delete('/:id(\\d+)', ah(async (req, res) => {
     });
   }
 
-  await db.execute({ sql: 'DELETE FROM farmacias WHERE id = ?', args: [req.params.id] });
-  res.json({ ok: true, visitas_apagadas: d.apagaVisitas });
+  // Exclusão atômica e independente de ON DELETE CASCADE: em libSQL remoto o
+  // PRAGMA foreign_keys=ON setado no startup não garante cascata em toda
+  // sessão/statement, então apagamos relatorios_visita explicitamente. O
+  // guard NOT EXISTS(pedidos) roda dentro da mesma transação (db.batch) para
+  // fechar a janela TOCTOU entre o SELECT de contagem acima e o DELETE: se um
+  // pedido for inserido nesse meio-tempo, nada é apagado.
+  const resultado = await db.batch([
+    {
+      sql: `DELETE FROM relatorios_visita WHERE farmacia_id = ?
+              AND NOT EXISTS (SELECT 1 FROM pedidos WHERE farmacia_id = ?)`,
+      args: [req.params.id, req.params.id],
+    },
+    {
+      sql: `DELETE FROM farmacias WHERE id = ?
+              AND NOT EXISTS (SELECT 1 FROM pedidos WHERE farmacia_id = ?)`,
+      args: [req.params.id, req.params.id],
+    },
+  ], 'write');
+
+  const [delVisitas, delFarmacia] = resultado;
+  if (Number(delFarmacia.rowsAffected) === 0) {
+    // Pedido apareceu na corrida entre o SELECT e o DELETE: recontar e bloquear.
+    const recontagem = await db.execute({
+      sql: 'SELECT COUNT(*) AS pedidos_count FROM pedidos WHERE farmacia_id = ?',
+      args: [req.params.id],
+    });
+    return res.status(409).json({
+      erro: 'Esta farmácia tem pedidos registrados e não pode ser excluída (preserva o histórico de vendas).',
+      pedidos_count: recontagem.rows[0].pedidos_count,
+    });
+  }
+
+  res.json({ ok: true, visitas_apagadas: Number(delVisitas.rowsAffected) });
 }));
 
 // GET /farmacias/:id/relatorios  (timeline / histórico)

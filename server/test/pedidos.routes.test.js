@@ -112,3 +112,26 @@ test('DELETE inexistente → 404', async () => {
   const r = await req('/pedidos/999999', { method: 'DELETE' });
   assert.equal(r.status, 404);
 });
+
+test('PATCH status-only → 200, atualiza status e mantém valor', async () => {
+  const id = await inserirPedido({ farmacia_id: farmA, valor: 1000, status: 'pago' });
+  const r = await req(`/pedidos/${id}`, { method: 'PATCH', body: JSON.stringify({ status_pagamento: 'atrasado' }) });
+  assert.equal(r.status, 200);
+  const p = await r.json();
+  assert.equal(p.status_pagamento, 'atrasado');
+  assert.equal(p.valor_centavos, 1000);
+});
+
+test('PATCH multi-campo → 200, atualiza valor e status', async () => {
+  const id = await inserirPedido({ farmacia_id: farmA, valor: 1000, status: 'pago' });
+  const r = await req(`/pedidos/${id}`, { method: 'PATCH', body: JSON.stringify({ valor_centavos: 7777, status_pagamento: 'nao_pago' }) });
+  assert.equal(r.status, 200);
+  const p = await r.json();
+  assert.equal(p.valor_centavos, 7777);
+  assert.equal(p.status_pagamento, 'nao_pago');
+});
+
+test('PATCH id inexistente → 404', async () => {
+  const r = await req('/pedidos/999999', { method: 'PATCH', body: JSON.stringify({ valor_centavos: 500 }) });
+  assert.equal(r.status, 404);
+});

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { cores, fontes } from '../theme';
@@ -37,37 +37,30 @@ function agrupar(pedidos, modo) {
 export default function PedidosScreen() {
   const insets = useSafeAreaInsets();
   const [pedidos, setPedidos] = useState(null);
+  const [totais, setTotais] = useState({ vendido: 0, recebido: 0, a_receber: 0 });
   const [farmacias, setFarmacias] = useState([]);
   const [modoGrafico, setModoGrafico] = useState('mes');
   const [novoAberto, setNovoAberto] = useState(false);
   const [editando, setEditando] = useState(null); // pedido em edição | null
   const [erro, setErro] = useState('');
 
-  useFocusEffect(
-    useCallback(() => {
-      let ativo = true;
-      (async () => {
-        try {
-          setErro('');
-          const [peds, fs] = await Promise.all([api.listarPedidos(), api.listarFarmacias()]);
-          if (ativo) { setPedidos(peds); setFarmacias(fs); }
-        } catch {
-          if (ativo) { setErro('Não foi possível carregar os pedidos.'); setPedidos([]); }
-        }
-      })();
-      return () => { ativo = false; };
-    }, [])
-  );
-
-  const totais = useMemo(() => {
-    const t = { vendido: 0, recebido: 0, areceber: 0 };
-    for (const p of pedidos || []) {
-      t.vendido += p.valor_centavos;
-      if (p.status_pagamento === 'pago') t.recebido += p.valor_centavos;
-      else t.areceber += p.valor_centavos;
+  // Lista + totais vêm juntos do servidor; os totais são somados no BANCO (SUM),
+  // não no cliente. Recarrega ao focar e após cada alteração (novo/editar/
+  // excluir/trocar status) para os totais refletirem a mudança.
+  const carregar = useCallback(async () => {
+    try {
+      setErro('');
+      const [resp, fs] = await Promise.all([api.listarPedidos(), api.listarFarmacias()]);
+      setPedidos(resp.pedidos);
+      setTotais(resp.totais);
+      setFarmacias(fs);
+    } catch {
+      setErro('Não foi possível carregar os pedidos.');
+      setPedidos((prev) => prev || []);
     }
-    return t;
-  }, [pedidos]);
+  }, []);
+
+  useFocusEffect(useCallback(() => { carregar(); }, [carregar]));
 
   const barras = useMemo(() => agrupar(pedidos || [], modoGrafico), [pedidos, modoGrafico]);
   const maxBarra = Math.max(1, ...barras.map((b) => b.total));
@@ -78,6 +71,7 @@ export default function PedidosScreen() {
     setPedidos((prev) => prev.map((p) => (p.id === pedido.id ? { ...p, status_pagamento: novo } : p)));
     try {
       await api.atualizarPedido(pedido.id, { status_pagamento: novo });
+      carregar(); // atualiza os totais no servidor
     } catch {
       setPedidos(anterior);
       setErro('Não foi possível atualizar o status.');
@@ -106,6 +100,7 @@ export default function PedidosScreen() {
           try {
             await api.excluirPedido(p.id);
             setPedidos((prev) => prev.filter((x) => x.id !== p.id));
+            carregar(); // atualiza os totais
           } catch {
             setErro('Não foi possível excluir o pedido.');
           }
@@ -130,56 +125,62 @@ export default function PedidosScreen() {
       {!pedidos ? (
         <View style={styles.centro}><ActivityIndicator color={cores.vinho} size="large" /></View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: insets.bottom + 24 }}>
-          {/* totais */}
-          <View style={styles.totais}>
-            {[['Vendido', totais.vendido, cores.texto], ['Recebido', totais.recebido, cores.verdeEscuro], ['A receber', totais.areceber, cores.ambar]].map(([lbl, val, cor]) => (
-              <View key={lbl} style={styles.totalBox}>
-                <Text style={styles.totalLabel}>{lbl}</Text>
-                <Text style={[styles.totalValor, { color: cor }]}>{moedaBRL(val)}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* gráfico */}
-          <View style={styles.card}>
-            <View style={styles.graficoTopo}>
-              <Text style={styles.cardTitulo}>Vendas em R$</Text>
-              <View style={styles.toggle}>
-                {[['mes', 'Mês'], ['semana', 'Semana']].map(([v, label]) => {
-                  const ativo = v === modoGrafico;
-                  return (
-                    <TouchableOpacity key={v} style={[styles.toggleItem, ativo && styles.toggleAtivo]} onPress={() => setModoGrafico(v)} activeOpacity={0.8}>
-                      <Text style={[styles.toggleTexto, { color: ativo ? cores.branco : cores.textoSuave }]}>{label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-            {barras.length === 0 ? (
-              <Text style={styles.vazio}>Nenhum pedido para exibir.</Text>
-            ) : (
-              <View style={styles.grafico}>
-                {barras.map((b) => (
-                  <View key={b.chave} style={styles.barraCol}>
-                    <Text style={styles.barraValor}>{Math.round(b.total / 100)}</Text>
-                    <View style={styles.barraTrilho}>
-                      <View style={[styles.barraFill, { height: `${(b.total / maxBarra) * 100}%` }]} />
-                    </View>
-                    <Text style={styles.barraLabel}>{b.label}</Text>
+        <FlatList
+          data={pedidos}
+          keyExtractor={(p) => String(p.id)}
+          contentContainerStyle={{ padding: 14, paddingBottom: insets.bottom + 24 }}
+          ListEmptyComponent={<Text style={styles.vazio}>Nenhum pedido registrado ainda.</Text>}
+          ListHeaderComponent={
+            <>
+              {/* totais (somados no servidor) */}
+              <View style={styles.totais}>
+                {[['Vendido', totais.vendido, cores.texto], ['Recebido', totais.recebido, cores.verdeEscuro], ['A receber', totais.a_receber, cores.ambar]].map(([lbl, val, cor]) => (
+                  <View key={lbl} style={styles.totalBox}>
+                    <Text style={styles.totalLabel}>{lbl}</Text>
+                    <Text style={[styles.totalValor, { color: cor }]}>{moedaBRL(val)}</Text>
                   </View>
                 ))}
               </View>
-            )}
-          </View>
 
-          {!!erro && <Text style={styles.erroTexto}>{erro}</Text>}
+              {/* gráfico */}
+              <View style={styles.card}>
+                <View style={styles.graficoTopo}>
+                  <Text style={styles.cardTitulo}>Vendas em R$</Text>
+                  <View style={styles.toggle}>
+                    {[['mes', 'Mês'], ['semana', 'Semana']].map(([v, label]) => {
+                      const ativo = v === modoGrafico;
+                      return (
+                        <TouchableOpacity key={v} style={[styles.toggleItem, ativo && styles.toggleAtivo]} onPress={() => setModoGrafico(v)} activeOpacity={0.8}>
+                          <Text style={[styles.toggleTexto, { color: ativo ? cores.branco : cores.textoSuave }]}>{label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+                {barras.length === 0 ? (
+                  <Text style={styles.vazio}>Nenhum pedido para exibir.</Text>
+                ) : (
+                  <View style={styles.grafico}>
+                    {barras.map((b) => (
+                      <View key={b.chave} style={styles.barraCol}>
+                        <Text style={styles.barraValor}>{Math.round(b.total / 100)}</Text>
+                        <View style={styles.barraTrilho}>
+                          <View style={[styles.barraFill, { height: `${(b.total / maxBarra) * 100}%` }]} />
+                        </View>
+                        <Text style={styles.barraLabel}>{b.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
 
-          {/* lista */}
-          <Text style={styles.secaoTitulo}>Pedidos recentes</Text>
-          {pedidos.length === 0 && <Text style={styles.vazio}>Nenhum pedido registrado ainda.</Text>}
-          {pedidos.map((p) => (
-            <Pressable key={p.id} style={styles.pedido} onLongPress={() => menuPedido(p)} delayLongPress={350}>
+              {!!erro && <Text style={styles.erroTexto}>{erro}</Text>}
+
+              <Text style={styles.secaoTitulo}>Pedidos recentes</Text>
+            </>
+          }
+          renderItem={({ item: p }) => (
+            <Pressable style={styles.pedido} onLongPress={() => menuPedido(p)} delayLongPress={350}>
               <View style={styles.pedidoTopo}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.pedidoNome} numberOfLines={1}>{p.farmacia_nome}</Text>
@@ -198,8 +199,8 @@ export default function PedidosScreen() {
                 })}
               </View>
             </Pressable>
-          ))}
-        </ScrollView>
+          )}
+        />
       )}
 
       {novoAberto && (
@@ -209,6 +210,7 @@ export default function PedidosScreen() {
           onSalvo={(p) => {
             setNovoAberto(false);
             setPedidos((prev) => [p, ...(prev || [])]);
+            carregar();
           }}
         />
       )}
@@ -229,6 +231,7 @@ export default function PedidosScreen() {
           onSalvo={(p) => {
             setEditando(null);
             setPedidos((prev) => prev.map((x) => (x.id === p.id ? p : x)));
+            carregar();
           }}
         />
       )}

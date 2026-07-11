@@ -29,7 +29,7 @@ export default function ContaScreen() {
       let ativo = true;
       (async () => {
         try {
-          const [usuarios, farmacias, pedidos] = await Promise.all([
+          const [usuarios, farmacias, pedidosResp] = await Promise.all([
             api.usuarios(), api.listarFarmacias(), api.listarPedidos(),
           ]);
           if (!ativo) return;
@@ -37,7 +37,7 @@ export default function ContaScreen() {
           setContadores({
             farmacias: farmacias.length,
             clientes: farmacias.filter((f) => f.eh_cliente).length,
-            pedidos: pedidos.length,
+            pedidos: pedidosResp.pedidos.length,
           });
         } catch {
           if (ativo) setContadores({ farmacias: '–', clientes: '–', pedidos: '–' });

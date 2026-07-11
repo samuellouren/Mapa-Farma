@@ -135,3 +135,16 @@ test('PATCH id inexistente → 404', async () => {
   const r = await req('/pedidos/999999', { method: 'PATCH', body: JSON.stringify({ valor_centavos: 500 }) });
   assert.equal(r.status, 404);
 });
+
+test('GET / → { pedidos, totais } com SUM correto no servidor', async () => {
+  await inserirPedido({ farmacia_id: farmA, valor: 3000, status: 'pago' });
+  await inserirPedido({ farmacia_id: farmA, valor: 2000, status: 'atrasado' });
+  const body = await (await req('/pedidos')).json();
+  assert.ok(Array.isArray(body.pedidos));
+  assert.equal(typeof body.totais.vendido, 'number');
+  // invariante: todo pedido cai em recebido (pago) ou a_receber (resto)
+  assert.equal(body.totais.vendido, body.totais.recebido + body.totais.a_receber);
+  // totais batem com a soma da lista (hoje sem paginação, lista = tudo)
+  const somaLista = body.pedidos.reduce((s, p) => s + p.valor_centavos, 0);
+  assert.equal(body.totais.vendido, somaLista);
+});

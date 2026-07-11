@@ -7,14 +7,25 @@ import { STATUS_PAGAMENTO } from '../lib/enums.js';
 export const pedidosRouter = Router();
 pedidosRouter.use(autenticar);
 
-// GET /pedidos  (lista com nome/bairro da farmácia)
+// GET /pedidos  →  { pedidos: [...], totais: { vendido, recebido, a_receber } }
+// Os totais são somados NO BANCO (SUM), não no cliente — assim ficam corretos
+// sobre TODOS os pedidos mesmo quando a lista for paginada no futuro, e o app
+// não precisa baixar tudo só pra somar. Mesmo padrão de agregação do /stats.
 pedidosRouter.get('/', ah(async (req, res) => {
-  const r = await db.execute(
+  const lista = await db.execute(
     `SELECT p.*, f.nome AS farmacia_nome, f.bairro AS farmacia_bairro
      FROM pedidos p JOIN farmacias f ON f.id = p.farmacia_id
      ORDER BY p.data_pedido DESC, p.id DESC`
   );
-  res.json(r.rows);
+  const t = await db.execute(
+    `SELECT
+       COALESCE(SUM(valor_centavos), 0) AS vendido,
+       COALESCE(SUM(CASE WHEN status_pagamento =  'pago' THEN valor_centavos ELSE 0 END), 0) AS recebido,
+       COALESCE(SUM(CASE WHEN status_pagamento <> 'pago' THEN valor_centavos ELSE 0 END), 0) AS a_receber
+     FROM pedidos`
+  );
+  const { vendido, recebido, a_receber } = t.rows[0];
+  res.json({ pedidos: lista.rows, totais: { vendido, recebido, a_receber } });
 }));
 
 // POST /pedidos  { farmacia_id, valor_centavos, status_pagamento?, data_pedido? }

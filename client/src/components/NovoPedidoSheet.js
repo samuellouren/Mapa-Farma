@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { cores } from '../theme';
 import { api } from '../api/client';
 import { STATUS_PAGAMENTO } from '../lib/enums';
-import { dataCurtaMes } from '../lib/formato';
+import { dataCurtaMes, dataVencimentoDe } from '../lib/formato';
 import { useAlturaTeclado } from '../lib/useAlturaTeclado';
 import FarmaciaPicker from './FarmaciaPicker';
 
@@ -27,6 +27,7 @@ export default function NovoPedidoSheet({ modo = 'criar', idAlvo = null, farmaci
   const [farmacia, setFarmacia] = useState(valoresIniciais.farmacia || null);
   const [valor, setValor] = useState(valoresIniciais.valor || '');
   const [status, setStatus] = useState(valoresIniciais.status || 'pago');
+  const [vencimento, setVencimento] = useState(valoresIniciais.vencimento || '');
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
 
@@ -41,7 +42,10 @@ export default function NovoPedidoSheet({ modo = 'criar', idAlvo = null, farmaci
     setErro('');
     setSalvando(true);
     try {
-      const dados = { farmacia_id: farmacia.id, valor_centavos: centavos, status_pagamento: status };
+      const dados = {
+        farmacia_id: farmacia.id, valor_centavos: centavos, status_pagamento: status,
+        data_vencimento: dataVencimentoDe(vencimento),
+      };
       const p = modo === 'editar'
         ? await api.atualizarPedido(idAlvo, dados)
         : await api.criarPedido(dados);
@@ -70,6 +74,16 @@ export default function NovoPedidoSheet({ modo = 'criar', idAlvo = null, farmaci
             value={valor}
             onChangeText={setValor}
             placeholder="0,00"
+            placeholderTextColor="#9a9aa2"
+            keyboardType="numbers-and-punctuation"
+          />
+
+          <Text style={styles.label}>Vencimento (opcional)</Text>
+          <TextInput
+            style={styles.input}
+            value={vencimento}
+            onChangeText={setVencimento}
+            placeholder="dd/mm/aaaa"
             placeholderTextColor="#9a9aa2"
             keyboardType="numbers-and-punctuation"
           />

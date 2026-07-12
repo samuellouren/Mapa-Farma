@@ -203,6 +203,7 @@ export default function PedidosScreen() {
             valor: centavosParaInput(editando.valor_centavos),
             status: editando.status_pagamento,
             data: editando.data_pedido,
+            vencimento: editando.data_vencimento || '',
           }}
           onFechar={() => setEditando(null)}
           onSalvo={(p) => {

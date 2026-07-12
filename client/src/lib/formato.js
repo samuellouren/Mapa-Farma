@@ -73,6 +73,21 @@ export function formatarEnderecoFarmacia(farmacia) {
   return juntarComPonto([farmacia.bairro, farmacia.endereco]);
 }
 
+// Texto opcional de vencimento → 'YYYY-MM-DD' ou null. Aceita 'dd/mm/aaaa' e
+// 'aaaa-mm-dd'. Vazio → null (campo é opcional). Data irreal → null.
+export function dataVencimentoDe(texto) {
+  const s = String(texto ?? '').trim();
+  if (!s) return null;
+  let ano, mes, dia;
+  let m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) { [, dia, mes, ano] = m; }
+  else { m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/); if (m) { [, ano, mes, dia] = m; } }
+  if (!m) return null;
+  const iso = `${ano}-${mes}-${dia}`;
+  const d = new Date(iso + 'T00:00:00');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso ? iso : null;
+}
+
 // 'Ricardo Cavalcante' → 'RC'
 export function iniciais(nome) {
   const p = String(nome || '').trim().split(/\s+/);

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   formatarNomeFarmacia, formatarNomeFarmaciaCompacto, formatarEnderecoFarmacia, centavosParaInput,
+  dataVencimentoDe,
 } from '../src/lib/formato.js';
 
 test('regra 1: nome + bairro + endereço → mostra os três', () => {
@@ -75,4 +76,19 @@ test('centavosParaInput: round-trip com o parser do sheet', () => {
   for (const c of [1, 5, 100, 999, 123456, 1000000]) {
     assert.equal(centavosDe(centavosParaInput(c)), c);
   }
+});
+
+test('dataVencimentoDe: dd/mm/aaaa → YYYY-MM-DD', () => {
+  assert.equal(dataVencimentoDe('01/08/2026'), '2026-08-01');
+});
+test('dataVencimentoDe: aceita já-ISO', () => {
+  assert.equal(dataVencimentoDe('2026-08-01'), '2026-08-01');
+});
+test('dataVencimentoDe: vazio → null (opcional)', () => {
+  assert.equal(dataVencimentoDe(''), null);
+  assert.equal(dataVencimentoDe('  '), null);
+});
+test('dataVencimentoDe: incompleto/ inválido → null', () => {
+  assert.equal(dataVencimentoDe('01/08'), null);
+  assert.equal(dataVencimentoDe('32/01/2026'), null);
 });

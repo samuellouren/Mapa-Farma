@@ -36,3 +36,13 @@ export function farmaciaMaisProxima(farmacias, lng, lat, zoom, raioPx = 26) {
   }
   return melhor;
 }
+
+// As `n` farmácias mais próximas de (lat,lng), ordenadas por distância, cada
+// uma com `distancia_m` anexado. Ignora as sem coordenada.
+export function farmaciasMaisProximas(farmacias, lat, lng, n = 5) {
+  return farmacias
+    .filter((f) => f && f.latitude != null && f.longitude != null)
+    .map((f) => ({ ...f, distancia_m: distanciaMetros(lat, lng, f.latitude, f.longitude) }))
+    .sort((a, b) => a.distancia_m - b.distancia_m)
+    .slice(0, n);
+}

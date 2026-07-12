@@ -3,6 +3,7 @@ import { db } from '../db.js';
 import { autenticar } from '../middleware/auth.js';
 import { ah } from '../lib/asyncHandler.js';
 import { STATUS_PAGAMENTO } from '../lib/enums.js';
+import { dataISOValida } from '../lib/datas.js';
 
 export const pedidosRouter = Router();
 pedidosRouter.use(autenticar);
@@ -30,21 +31,24 @@ pedidosRouter.get('/', ah(async (req, res) => {
 
 // POST /pedidos  { farmacia_id, valor_centavos, status_pagamento?, data_pedido? }
 pedidosRouter.post('/', ah(async (req, res) => {
-  const { farmacia_id, valor_centavos, status_pagamento, data_pedido } = req.body || {};
+  const { farmacia_id, valor_centavos, status_pagamento, data_pedido, data_vencimento } = req.body || {};
   if (!farmacia_id || !Number.isInteger(valor_centavos)) {
     return res.status(400).json({ erro: 'farmacia_id e valor_centavos (inteiro em centavos) são obrigatórios' });
   }
   const status = status_pagamento ?? 'pago';
   if (!STATUS_PAGAMENTO.includes(status)) return res.status(400).json({ erro: 'status_pagamento inválido' });
+  if (data_vencimento != null && !dataISOValida(data_vencimento)) {
+    return res.status(400).json({ erro: 'data_vencimento deve ser YYYY-MM-DD ou null' });
+  }
   const data = data_pedido || new Date().toISOString().slice(0, 10);
 
   const far = await db.execute({ sql: 'SELECT id FROM farmacias WHERE id = ?', args: [farmacia_id] });
   if (!far.rows[0]) return res.status(404).json({ erro: 'Farmácia não encontrada' });
 
   const ins = await db.execute({
-    sql: `INSERT INTO pedidos (farmacia_id, usuario_id, valor_centavos, status_pagamento, data_pedido)
-          VALUES (?,?,?,?,?)`,
-    args: [farmacia_id, req.usuario.id, valor_centavos, status, data],
+    sql: `INSERT INTO pedidos (farmacia_id, usuario_id, valor_centavos, status_pagamento, data_pedido, data_vencimento)
+          VALUES (?,?,?,?,?,?)`,
+    args: [farmacia_id, req.usuario.id, valor_centavos, status, data, data_vencimento ?? null],
   });
   const r = await db.execute({
     sql: `SELECT p.*, f.nome AS farmacia_nome, f.bairro AS farmacia_bairro
@@ -58,7 +62,7 @@ pedidosRouter.post('/', ah(async (req, res) => {
 // Aplica só os campos presentes. data_pedido é imutável (não aceito).
 pedidosRouter.patch('/:id', ah(async (req, res) => {
   const b = req.body || {};
-  const { status_pagamento, valor_centavos, farmacia_id } = b;
+  const { status_pagamento, valor_centavos, farmacia_id, data_vencimento } = b;
   const campos = [];
   const args = [];
 
@@ -76,6 +80,12 @@ pedidosRouter.patch('/:id', ah(async (req, res) => {
     const far = await db.execute({ sql: 'SELECT id FROM farmacias WHERE id = ?', args: [farmacia_id] });
     if (!far.rows[0]) return res.status(404).json({ erro: 'Farmácia não encontrada' });
     campos.push('farmacia_id = ?'); args.push(farmacia_id);
+  }
+  if (data_vencimento !== undefined) {
+    if (data_vencimento !== null && !dataISOValida(data_vencimento)) {
+      return res.status(400).json({ erro: 'data_vencimento deve ser YYYY-MM-DD ou null' });
+    }
+    campos.push('data_vencimento = ?'); args.push(data_vencimento);
   }
   if (!campos.length) return res.status(400).json({ erro: 'Nada para atualizar' });
 

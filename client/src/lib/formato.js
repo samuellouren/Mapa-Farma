@@ -93,3 +93,9 @@ export function iniciais(nome) {
   const p = String(nome || '').trim().split(/\s+/);
   return ((p[0]?.[0] || '') + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
 }
+
+// Metros → rótulo curto: '850 m' abaixo de 1km, senão '1,2 km'.
+export function distanciaCurta(m) {
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m / 1000).toFixed(1).replace('.', ',')} km`;
+}

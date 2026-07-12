@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   formatarNomeFarmacia, formatarNomeFarmaciaCompacto, formatarEnderecoFarmacia, centavosParaInput,
-  dataVencimentoDe,
+  dataVencimentoDe, distanciaCurta,
 } from '../src/lib/formato.js';
 
 test('regra 1: nome + bairro + endereço → mostra os três', () => {
@@ -91,4 +91,10 @@ test('dataVencimentoDe: vazio → null (opcional)', () => {
 test('dataVencimentoDe: incompleto/ inválido → null', () => {
   assert.equal(dataVencimentoDe('01/08'), null);
   assert.equal(dataVencimentoDe('32/01/2026'), null);
+});
+
+test('distanciaCurta: <1km em metros, >=1km em km com vírgula', () => {
+  assert.equal(distanciaCurta(850), '850 m');
+  assert.equal(distanciaCurta(1200), '1,2 km');
+  assert.equal(distanciaCurta(15400), '15,4 km');
 });

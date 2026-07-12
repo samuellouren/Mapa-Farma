@@ -2,10 +2,12 @@ import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Location from 'expo-location';
 import { cores, fontes } from '../theme';
 import { api } from '../api/client';
 import { PERFIL_PAGAMENTO, PERFIL_COMPRA } from '../lib/enums';
-import { formatarNomeFarmaciaCompacto } from '../lib/formato';
+import { farmaciasMaisProximas } from '../lib/hitTest';
+import { formatarNomeFarmaciaCompacto, distanciaCurta } from '../lib/formato';
 
 const PERIODOS = [7, 30, 90];
 
@@ -50,6 +52,8 @@ export default function PainelScreen() {
   const [periodo, setPeriodo] = useState(30);
   const [stats, setStats] = useState(null);
   const [erro, setErro] = useState('');
+  const [coord, setCoord] = useState(null);       // {lat, lng} | null
+  const [semLocal, setSemLocal] = useState(false); // permissão negada/GPS off
 
   useFocusEffect(
     useCallback(() => {
@@ -67,8 +71,32 @@ export default function PainelScreen() {
     }, [periodo])
   );
 
+  // Pede localização ao focar, p/ ordenar o card de "nunca visitadas" por
+  // distância. Mesmo `coordValida` do MapaScreen (bounds de sanidade Maceió/AL).
+  useFocusEffect(
+    useCallback(() => {
+      let ativo = true;
+      (async () => {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') { if (ativo) setSemLocal(true); return; }
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const { latitude, longitude } = pos.coords;
+          if (ativo && Number.isFinite(latitude) && Number.isFinite(longitude)
+              && latitude > -11 && latitude < -8 && longitude > -37 && longitude < -34) {
+            setCoord({ lat: latitude, lng: longitude });
+          } else if (ativo) { setSemLocal(true); }
+        } catch { if (ativo) setSemLocal(true); }
+      })();
+      return () => { ativo = false; };
+    }, [])
+  );
+
   const carteira = stats?.perfil_pagamento_carteira || { paga_em_dia: 0, atrasa: 0, nao_paga: 0 };
   const maxVend = Math.max(1, ...(stats?.por_vendedor || []).map((v) => v.visitas));
+  const proximas = coord && stats?.nunca_visitadas
+    ? farmaciasMaisProximas(stats.nunca_visitadas, coord.lat, coord.lng, 5)
+    : [];
 
   return (
     <View style={styles.tela}>
@@ -121,14 +149,34 @@ export default function PainelScreen() {
           />
 
           <Ranking
-            titulo="Sem visita há mais tempo"
+            titulo="Visitadas há mais tempo"
             subtitulo="priorize estas na próxima rota"
             itens={stats.sem_visita_ha_mais_tempo}
             vazio="Sem dados de visita ainda."
             render={(it) => (
-              <Text style={styles.desde}>{it.dias_sem_visita == null ? 'nunca' : `${it.dias_sem_visita}d`}</Text>
+              <Text style={styles.desde}>{it.dias_sem_visita == null ? '—' : `${it.dias_sem_visita}d`}</Text>
             )}
           />
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitulo}>Nunca visitadas · perto de você</Text>
+            <Text style={styles.cardSub}>as mais próximas de onde você está</Text>
+            {semLocal ? (
+              <Text style={styles.vazio}>Ative a localização para ver farmácias próximas.</Text>
+            ) : proximas.length === 0 ? (
+              <Text style={styles.vazio}>Nenhuma farmácia sem visita por perto.</Text>
+            ) : (
+              proximas.map((it, i) => (
+                <View key={it.id} style={styles.rankLinha}>
+                  <Text style={styles.rankNum}>{i + 1}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rankNome} numberOfLines={1}>{formatarNomeFarmaciaCompacto(it)}</Text>
+                  </View>
+                  <Text style={styles.desde}>{distanciaCurta(it.distancia_m)}</Text>
+                </View>
+              ))
+            )}
+          </View>
 
           {/* carteira */}
           <View style={styles.card}>

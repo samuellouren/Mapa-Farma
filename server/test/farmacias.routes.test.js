@@ -146,3 +146,36 @@ test('DELETE manual limpa → 200 e some', async () => {
   const ainda = await db.execute({ sql: 'SELECT 1 FROM farmacias WHERE id = ?', args: [id] });
   assert.equal(ainda.rows.length, 0);
 });
+
+async function inserirPedidoStatus(farmaciaId, status, data) {
+  await db.execute({
+    sql: 'INSERT INTO pedidos (farmacia_id, usuario_id, valor_centavos, status_pagamento, data_pedido) VALUES (?,?,?,?,?)',
+    args: [farmaciaId, usuarioId, 1000, status, data],
+  });
+}
+
+test('GET /:id expõe perfil_pagamento_efetivo do pedido mais recente', async () => {
+  const id = Number(await inserirFarmacia('manual')); // sem perfil manual
+  await inserirPedidoStatus(id, 'atrasado', '2026-07-10');
+  const f = await (await req(`/farmacias/${id}`)).json();
+  assert.equal(f.perfil_pagamento, null);
+  assert.equal(f.perfil_pagamento_efetivo, 'atrasa');
+});
+
+test('GET / filtra por perfil efetivo', async () => {
+  const id = Number(await inserirFarmacia('manual'));
+  await inserirPedidoStatus(id, 'nao_pago', '2026-07-11');
+  const lista = await (await req('/farmacias?perfil_pagamento=nao_paga')).json();
+  assert.ok(lista.some((x) => x.id === id));
+  assert.ok(lista.every((x) => x.perfil_pagamento_efetivo === 'nao_paga'));
+});
+
+test('PATCH que limpa o manual devolve efetivo vindo do pedido', async () => {
+  const id = Number(await inserirFarmacia('manual'));
+  await inserirPedidoStatus(id, 'pago', '2026-07-12');
+  await req(`/farmacias/${id}`, { method: 'PATCH', body: JSON.stringify({ perfil_pagamento: 'nao_paga' }) });
+  const r = await req(`/farmacias/${id}`, { method: 'PATCH', body: JSON.stringify({ perfil_pagamento: null }) });
+  const f = await r.json();
+  assert.equal(f.perfil_pagamento, null);
+  assert.equal(f.perfil_pagamento_efetivo, 'paga_em_dia');
+});

@@ -5,6 +5,7 @@ import { ah } from '../lib/asyncHandler.js';
 import { STATUS_VISITA, PERFIL_PAGAMENTO, PERFIL_COMPRA } from '../lib/enums.js';
 import { dentroDeMaceio } from '../lib/limite-maceio.js';
 import { avaliarExclusao } from '../lib/exclusao.js';
+import { sqlPerfilEfetivo } from '../lib/perfilPagamento.js';
 
 export const farmaciasRouter = Router();
 farmaciasRouter.use(autenticar);
@@ -24,10 +25,10 @@ farmaciasRouter.get('/', ah(async (req, res) => {
   else if (relacao === 'nao') where.push('eh_cliente = 0');
 
   if (status_visita) { where.push('status_visita = ?'); args.push(status_visita); }
-  if (perfil_pagamento) { where.push('perfil_pagamento = ?'); args.push(perfil_pagamento); }
+  if (perfil_pagamento) { where.push(`${sqlPerfilEfetivo('f')} = ?`); args.push(perfil_pagamento); }
 
   const sql =
-    'SELECT * FROM farmacias' +
+    `SELECT f.*, ${sqlPerfilEfetivo('f')} AS perfil_pagamento_efetivo FROM farmacias f` +
     (where.length ? ' WHERE ' + where.join(' AND ') : '') +
     ' ORDER BY nome';
   const r = await db.execute({ sql, args });
@@ -38,6 +39,7 @@ farmaciasRouter.get('/', ah(async (req, res) => {
 farmaciasRouter.get('/:id(\\d+)', ah(async (req, res) => {
   const r = await db.execute({
     sql: `SELECT f.*,
+            ${sqlPerfilEfetivo('f')} AS perfil_pagamento_efetivo,
             (SELECT COUNT(*) FROM relatorios_visita WHERE farmacia_id = f.id) AS relatorios_count,
             (SELECT COUNT(*) FROM pedidos          WHERE farmacia_id = f.id) AS pedidos_count
           FROM farmacias f WHERE f.id = ?`,
@@ -127,7 +129,10 @@ farmaciasRouter.patch('/:id', ah(async (req, res) => {
 
   args.push(req.params.id);
   await db.execute({ sql: `UPDATE farmacias SET ${campos.join(', ')} WHERE id = ?`, args });
-  const r = await db.execute({ sql: 'SELECT * FROM farmacias WHERE id = ?', args: [req.params.id] });
+  const r = await db.execute({
+    sql: `SELECT f.*, ${sqlPerfilEfetivo('f')} AS perfil_pagamento_efetivo FROM farmacias f WHERE f.id = ?`,
+    args: [req.params.id],
+  });
   if (!r.rows[0]) return res.status(404).json({ erro: 'Farmácia não encontrada' });
   res.json(r.rows[0]);
 }));

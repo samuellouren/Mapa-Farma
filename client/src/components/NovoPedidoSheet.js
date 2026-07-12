@@ -39,12 +39,14 @@ export default function NovoPedidoSheet({ modo = 'criar', idAlvo = null, farmaci
     if (!farmacia) return setErro('Selecione a farmácia.');
     const centavos = centavosDe(valor);
     if (centavos == null || centavos <= 0) return setErro('Informe um valor válido.');
+    const venc = dataVencimentoDe(vencimento);
+    if (vencimento.trim() && venc == null) return setErro('Vencimento inválido. Use dd/mm/aaaa (com zero à esquerda).');
     setErro('');
     setSalvando(true);
     try {
       const dados = {
         farmacia_id: farmacia.id, valor_centavos: centavos, status_pagamento: status,
-        data_vencimento: dataVencimentoDe(vencimento),
+        data_vencimento: venc,
       };
       const p = modo === 'editar'
         ? await api.atualizarPedido(idAlvo, dados)

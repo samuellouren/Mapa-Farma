@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../db.js';
 import { autenticar } from '../middleware/auth.js';
 import { ah } from '../lib/asyncHandler.js';
-import { sqlPerfilEfetivo } from '../lib/perfilPagamento.js';
+import { sqlPerfilPedido } from '../lib/perfilPagamento.js';
 
 export const statsRouter = Router();
 statsRouter.use(autenticar);
@@ -32,13 +32,13 @@ statsRouter.get('/', ah(async (req, res) => {
 
   const pag = await db.execute(
     `SELECT perfil, COUNT(*) AS n FROM (
-       SELECT ${sqlPerfilEfetivo('f')} AS perfil FROM farmacias f
+       SELECT ${sqlPerfilPedido('f')} AS perfil FROM farmacias f
      ) WHERE perfil IS NOT NULL GROUP BY perfil`
   );
 
   const fs = await db.execute(
     `SELECT f.id, f.nome, f.bairro, f.eh_cliente, f.perfil_pagamento, f.perfil_compra,
-            ${sqlPerfilEfetivo('f')} AS perfil_pagamento_efetivo,
+            ${sqlPerfilPedido('f')} AS perfil_pagamento_pedido,
             (SELECT COUNT(*) FROM relatorios_visita rv WHERE rv.farmacia_id = f.id) AS total_relatorios,
             (SELECT MAX(rv.data_visita) FROM relatorios_visita rv WHERE rv.farmacia_id = f.id) AS ultima_visita
      FROM farmacias f`
@@ -52,11 +52,11 @@ statsRouter.get('/', ah(async (req, res) => {
     .filter((f) => f.eh_cliente)
     .map((f) => ({
       ...f,
-      score: (PESO_COMPRA[f.perfil_compra] || 0) + (PESO_PAGAMENTO[f.perfil_pagamento_efetivo] || 0) + f.total_relatorios * 0.5,
+      score: (PESO_COMPRA[f.perfil_compra] || 0) + (PESO_PAGAMENTO[f.perfil_pagamento_pedido] || 0) + f.total_relatorios * 0.5,
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 4)
-    .map((f) => ({ id: f.id, nome: f.nome, bairro: f.bairro, perfil_compra: f.perfil_compra, perfil_pagamento: f.perfil_pagamento_efetivo }));
+    .map((f) => ({ id: f.id, nome: f.nome, bairro: f.bairro, perfil_compra: f.perfil_compra, perfil_pagamento: f.perfil_pagamento_pedido }));
 
   const semVisita = linhas
     .slice()
@@ -68,9 +68,9 @@ statsRouter.get('/', ah(async (req, res) => {
   pag.rows.forEach((r) => { carteira[r.perfil] = r.n; });
 
   const perfilPagamentoClientes = linhas
-    .filter((f) => f.perfil_pagamento_efetivo)
+    .filter((f) => f.perfil_pagamento_pedido)
     .sort((a, b) => a.nome.localeCompare(b.nome))
-    .map((f) => ({ id: f.id, nome: f.nome, bairro: f.bairro, perfil_pagamento: f.perfil_pagamento_efetivo }));
+    .map((f) => ({ id: f.id, nome: f.nome, bairro: f.bairro, perfil_pagamento: f.perfil_pagamento_pedido }));
 
   res.json({
     periodo,

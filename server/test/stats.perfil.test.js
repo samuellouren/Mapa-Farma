@@ -43,10 +43,11 @@ test.before(async () => {
   usuarioId = Number(u.lastInsertRowid);
   token = gerarToken({ id: usuarioId, nome: 'T', email: 't@t.com' });
 
-  const f1 = await farmacia('nao_paga');        // override manual
-  await pedido(f1, 'pago', '2026-07-10');        // ignorado pelo override
+  const f1 = await farmacia('nao_paga');        // manual nao_paga...
+  await pedido(f1, 'pago', '2026-07-10');        // ...IGNORADO: conta pelo pedido → paga_em_dia
   const f2 = await farmacia(null);               // sem manual
-  await pedido(f2, 'pago', '2026-07-10');         // → paga_em_dia
+  await pedido(f2, 'atrasado', '2026-07-10');     // → atrasa (pelo pedido)
+  await farmacia('paga_em_dia');                  // manual definido, SEM pedido → fica de fora
   await farmacia(null);                           // sem manual, sem pedido → não conta
 
   const app = express();
@@ -57,15 +58,15 @@ test.before(async () => {
 });
 test.after(async () => { server?.close(); await db.close(); try { rmSync(DB_FILE); } catch { /* já removido */ } });
 
-test('carteira conta por perfil efetivo (override + farmácia só-com-pedido)', async () => {
+test('carteira conta SÓ por pedido (ignora manual como override e como só-manual)', async () => {
   const s = await (await req('/stats?periodo=30')).json();
-  assert.equal(s.perfil_pagamento_carteira.nao_paga, 1);    // f1 override
-  assert.equal(s.perfil_pagamento_carteira.paga_em_dia, 1); // f2 pelo pedido
-  assert.equal(s.perfil_pagamento_carteira.atrasa, 0);
+  assert.equal(s.perfil_pagamento_carteira.paga_em_dia, 1); // f1 pelo pedido (manual nao_paga ignorado)
+  assert.equal(s.perfil_pagamento_carteira.atrasa, 1);      // f2 pelo pedido
+  assert.equal(s.perfil_pagamento_carteira.nao_paga, 0);    // manual-só-sem-pedido não entra
 });
 
-test('lista por cliente inclui a farmácia que só tem pedido', async () => {
+test('lista por cliente = só farmácias com pedido (manual-sem-pedido fica de fora)', async () => {
   const s = await (await req('/stats?periodo=30')).json();
   const perfis = s.perfil_pagamento_clientes.map((c) => c.perfil_pagamento).sort();
-  assert.deepEqual(perfis, ['nao_paga', 'paga_em_dia']);
+  assert.deepEqual(perfis, ['atrasa', 'paga_em_dia']);
 });

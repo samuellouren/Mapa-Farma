@@ -12,6 +12,7 @@ import { dataCurta, duracaoLabel, formatarEnderecoFarmacia } from '../lib/format
 import SegmentedControl from '../components/SegmentedControl';
 import { IconeVoltar, IconeRota } from '../components/Icones';
 import NovaFarmaciaSheet from '../components/NovaFarmaciaSheet';
+import NovoPedidoSheet from '../components/NovoPedidoSheet';
 import SeletorLocalizacao from '../components/SeletorLocalizacao';
 
 const SEG_VISITA = Object.entries(STATUS_VISITA).map(([v, { label }]) => [v, label]);
@@ -26,6 +27,7 @@ export default function FichaScreen({ navigation, route }) {
   const [erro, setErro] = useState('');
   const [edicao, setEdicao] = useState(null); // { coordenada:{latitude,longitude}, valores:{nome,endereco,bairro} }
   const [seletor, setSeletor] = useState(null); // { centro:[lng,lat], rascunho:{nome,endereco,bairro} }
+  const [pedidoAberto, setPedidoAberto] = useState(false); // sheet de novo pedido
 
   // Recarrega ao ganhar foco (inclusive na volta do Registrar).
   useFocusEffect(
@@ -184,14 +186,24 @@ export default function FichaScreen({ navigation, route }) {
           {!!erro && <Text style={styles.erroTexto}>{erro}</Text>}
         </View>
 
-        <TouchableOpacity
-          style={styles.botaoRegistrar}
-          onPress={() => navigation.navigate('Registrar', { id, nome: farmacia.nome })}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.botaoRegistrarMais}>+</Text>
-          <Text style={styles.botaoRegistrarTexto}>Registrar visita</Text>
-        </TouchableOpacity>
+        <View style={styles.botoesAcao}>
+          <TouchableOpacity
+            style={styles.botaoAcao}
+            onPress={() => navigation.navigate('Registrar', { id, nome: farmacia.nome })}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.botaoAcaoMais}>+</Text>
+            <Text style={styles.botaoAcaoTexto}>Registrar visita</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.botaoAcao}
+            onPress={() => setPedidoAberto(true)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.botaoAcaoMais}>+</Text>
+            <Text style={styles.botaoAcaoTexto}>Registrar pedido</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* histórico resumo */}
         <View style={styles.card}>
@@ -229,6 +241,25 @@ export default function FichaScreen({ navigation, route }) {
           </View>
         )}
       </ScrollView>
+
+      {pedidoAberto && (
+        <NovoPedidoSheet
+          farmacias={[farmacia]}
+          valoresIniciais={{ farmacia }}
+          onFechar={() => setPedidoAberto(false)}
+          onSalvo={async () => {
+            setPedidoAberto(false);
+            Alert.alert('Pedido registrado', farmacia.nome);
+            try {
+              const f = await api.farmacia(id);
+              setFarmacia((prev) => ({ ...prev, ...f }));
+            } catch {
+              // pedidos_count reatualiza no próximo foco; o servidor
+              // bloqueia exclusão indevida via 409 de qualquer forma
+            }
+          }}
+        />
+      )}
 
       {edicao && (
         <NovaFarmaciaSheet
@@ -316,12 +347,13 @@ const styles = StyleSheet.create({
     fontSize: 12, fontWeight: '600', color: cores.textoMudo, textTransform: 'uppercase',
     letterSpacing: 0.5, marginTop: 12, marginBottom: 7,
   },
-  botaoRegistrar: {
-    height: 52, borderRadius: 12, backgroundColor: cores.vinho, marginBottom: 12,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  botoesAcao: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  botaoAcao: {
+    flex: 1, height: 52, borderRadius: 12, backgroundColor: cores.vinho,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  botaoRegistrarMais: { color: cores.branco, fontSize: 22, fontWeight: '600', marginTop: -2 },
-  botaoRegistrarTexto: { color: cores.branco, fontSize: 16, fontWeight: '600' },
+  botaoAcaoMais: { color: cores.branco, fontSize: 20, fontWeight: '600', marginTop: -2 },
+  botaoAcaoTexto: { color: cores.branco, fontSize: 14.5, fontWeight: '600' },
   historicoTopo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   historicoTitulo: { fontSize: 15, fontWeight: '700', color: cores.texto },
   verTudo: { fontSize: 13, fontWeight: '600', color: cores.vinho },

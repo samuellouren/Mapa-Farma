@@ -179,6 +179,13 @@ export default function FichaScreen({ navigation, route }) {
 
           <Text style={styles.grupoTitulo}>Perfil de pagamento</Text>
           <SegmentedControl opcoes={SEG_PAGAMENTO} valor={farmacia.perfil_pagamento} onMudar={(v) => mudar({ perfil_pagamento: v })} permiteLimpar />
+          <Text style={styles.perfilDica}>
+            {farmacia.perfil_pagamento
+              ? 'Definido manualmente. Limpe para voltar ao automático.'
+              : farmacia.perfil_pagamento_efetivo
+                ? `Automático: ${PERFIL_PAGAMENTO[farmacia.perfil_pagamento_efetivo].label} — do último pedido.`
+                : 'Sem pedidos ainda.'}
+          </Text>
 
           <Text style={styles.grupoTitulo}>Perfil de compra</Text>
           <SegmentedControl opcoes={SEG_COMPRA} valor={farmacia.perfil_compra} onMudar={(v) => mudar({ perfil_compra: v })} permiteLimpar />
@@ -347,6 +354,7 @@ const styles = StyleSheet.create({
     fontSize: 12, fontWeight: '600', color: cores.textoMudo, textTransform: 'uppercase',
     letterSpacing: 0.5, marginTop: 12, marginBottom: 7,
   },
+  perfilDica: { fontSize: 12, color: cores.textoMudo, marginTop: 6 },
   botoesAcao: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   botaoAcao: {
     flex: 1, height: 52, borderRadius: 12, backgroundColor: cores.vinho,

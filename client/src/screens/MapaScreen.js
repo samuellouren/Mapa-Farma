@@ -76,7 +76,7 @@ export default function MapaScreen({ navigation }) {
     if (filtros.relacao === 'cliente' && !f.eh_cliente) return false;
     if (filtros.relacao === 'nao' && f.eh_cliente) return false;
     if (filtros.status_visita !== 'all' && f.status_visita !== filtros.status_visita) return false;
-    if (filtros.perfil_pagamento !== 'all' && f.perfil_pagamento !== filtros.perfil_pagamento) return false;
+    if (filtros.perfil_pagamento !== 'all' && f.perfil_pagamento_efetivo !== filtros.perfil_pagamento) return false;
     return true;
   }
 

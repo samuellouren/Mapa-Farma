@@ -12,7 +12,7 @@ export default function BottomSheetFarmacia({ farmacia, onFechar, onAbrirFicha, 
 
   const cliente = !!farmacia.eh_cliente;
   const visita = STATUS_VISITA[farmacia.status_visita];
-  const pagamento = farmacia.perfil_pagamento ? PERFIL_PAGAMENTO[farmacia.perfil_pagamento] : null;
+  const pagamento = farmacia.perfil_pagamento_efetivo ? PERFIL_PAGAMENTO[farmacia.perfil_pagamento_efetivo] : null;
   const endereco = [farmacia.endereco, farmacia.bairro].filter(Boolean).join(' · ');
 
   return (

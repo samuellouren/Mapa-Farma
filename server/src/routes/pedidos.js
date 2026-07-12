@@ -29,7 +29,7 @@ pedidosRouter.get('/', ah(async (req, res) => {
   res.json({ pedidos: lista.rows, totais: { vendido, recebido, a_receber } });
 }));
 
-// POST /pedidos  { farmacia_id, valor_centavos, status_pagamento?, data_pedido? }
+// POST /pedidos  { farmacia_id, valor_centavos, status_pagamento?, data_pedido?, data_vencimento? }
 pedidosRouter.post('/', ah(async (req, res) => {
   const { farmacia_id, valor_centavos, status_pagamento, data_pedido, data_vencimento } = req.body || {};
   if (!farmacia_id || !Number.isInteger(valor_centavos)) {
@@ -58,7 +58,7 @@ pedidosRouter.post('/', ah(async (req, res) => {
   res.status(201).json(r.rows[0]);
 }));
 
-// PATCH /pedidos/:id  { status_pagamento?, valor_centavos?, farmacia_id? }
+// PATCH /pedidos/:id  { status_pagamento?, valor_centavos?, farmacia_id?, data_vencimento? }
 // Aplica só os campos presentes. data_pedido é imutável (não aceito).
 pedidosRouter.patch('/:id', ah(async (req, res) => {
   const b = req.body || {};

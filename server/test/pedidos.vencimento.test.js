@@ -67,3 +67,16 @@ test('PATCH atualiza data_vencimento (inclusive limpando p/ null)', async () => 
   const upd = await (await req(`/pedidos/${criado.id}`, { method: 'PATCH', body: JSON.stringify({ data_vencimento: null }) })).json();
   assert.equal(upd.data_vencimento, null);
 });
+
+test('POST rejeita data calendário-inválida (dia/mes fora do intervalo)', async () => {
+  for (const dv of ['2026-02-30', '2026-13-01', '2026-00-10', '2025-02-29']) {
+    const r = await req('/pedidos', { method: 'POST', body: JSON.stringify({ farmacia_id: farmaciaId, valor_centavos: 1000, data_vencimento: dv }) });
+    assert.equal(r.status, 400, `esperava 400 para ${dv}`);
+  }
+});
+
+test('POST aceita 29/02 em ano bissexto', async () => {
+  const r = await req('/pedidos', { method: 'POST', body: JSON.stringify({ farmacia_id: farmaciaId, valor_centavos: 1000, data_vencimento: '2028-02-29' }) });
+  const p = await r.json();
+  assert.equal(p.data_vencimento, '2028-02-29');
+});

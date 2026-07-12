@@ -44,10 +44,11 @@ yarn-error.*
 *.db
 *.db.bak-*
 
-# secrets
-server/.env
-server/src/seed/usuarios.js
+# secrets (.env, .env.production e afins — nunca versionar credenciais)
+server/.env*
+!server/.env.example
 
 # Claude Code scratch (worktrees isoladas, ledger de execução)
 .claude/worktrees/
 .superpowers/
+

@@ -59,8 +59,8 @@ statsRouter.get('/', ah(async (req, res) => {
     .map((f) => ({ id: f.id, nome: f.nome, bairro: f.bairro, perfil_compra: f.perfil_compra, perfil_pagamento: f.perfil_pagamento_pedido }));
 
   const semVisita = linhas
-    .slice()
-    .sort((a, b) => (b.dias_sem_visita ?? 1e9) - (a.dias_sem_visita ?? 1e9))
+    .filter((f) => f.ultima_visita != null)   // só já-visitadas; nunca-visitadas vão pro card de distância
+    .sort((a, b) => (b.dias_sem_visita ?? 0) - (a.dias_sem_visita ?? 0))
     .slice(0, 4)
     .map((f) => ({ id: f.id, nome: f.nome, bairro: f.bairro, dias_sem_visita: f.dias_sem_visita }));
 
@@ -72,6 +72,13 @@ statsRouter.get('/', ah(async (req, res) => {
     .sort((a, b) => a.nome.localeCompare(b.nome))
     .map((f) => ({ id: f.id, nome: f.nome, bairro: f.bairro, perfil_pagamento: f.perfil_pagamento_pedido }));
 
+  const nuncaVisitadas = await db.execute(
+    `SELECT f.id, f.nome, f.bairro, f.latitude, f.longitude
+     FROM farmacias f
+     WHERE f.latitude IS NOT NULL AND f.longitude IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM relatorios_visita rv WHERE rv.farmacia_id = f.id)`
+  );
+
   res.json({
     periodo,
     visitas_periodo: vis.rows[0].total,
@@ -81,5 +88,6 @@ statsRouter.get('/', ah(async (req, res) => {
     perfil_pagamento_clientes: perfilPagamentoClientes,
     top_clientes: topClientes,
     sem_visita_ha_mais_tempo: semVisita,
+    nunca_visitadas: nuncaVisitadas.rows,
   });
 }));

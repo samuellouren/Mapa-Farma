@@ -123,3 +123,26 @@ export function iniciais(nome) {
 
 ## Verificação final (dispositivo)
 Percorrer as 4 abas: Painel muda com período; Pedidos cria pedido + troca status inline + totais/gráfico atualizam; Conta mostra contadores/equipe, toggles persistem, "Sair" volta ao Login; Histórico abre da Ficha com a timeline. Backend exercido por curl durante a implementação.
+
+---
+
+## Nota pós-implementação — gráfico "Vendas em R$" (2026-07-12)
+
+A função de agrupamento saiu de inline em `PedidosScreen.js` para o módulo puro
+`client/src/lib/grafico.js` (`agrupar(pedidos, modo, hoje = new Date())`),
+coberto por `client/test/grafico.test.mjs`.
+
+**Comportamento atual dos dois modos** — filosofias diferentes, registrado aqui
+pra decisão futura (não é bug, não há urgência):
+
+| Modo | Recorte | Limite | Períodos vazios | Eixo |
+|---|---|---|---|---|
+| **Semana** | semana ISO corrente (seg→dom, ancorada em `hoje`) | 7 dias fixos | aparecem **zerados** | contínuo (7 dias sempre) |
+| **Mês** | todos os meses com pedido | **`.slice(-7)`** = 7 meses mais recentes **com pedido** | são **pulados** | **não-contínuo** (gaps colapsam) |
+
+**Ponto em aberto (decidir com calma):** o teto de 7 já protege o modo Mês de
+acumular dezenas de barras ao longo dos anos, então não há problema de
+legibilidade a resolver. A eventual padronização seria alinhar o Mês à
+filosofia do Semana — "últimos N meses de calendário **contínuos**, com meses
+vazios zerados" (sugestão: N=6, mais legível que 12 no celular). Fica documentado
+como está; mudar só se/quando o cliente quiser essa consistência.

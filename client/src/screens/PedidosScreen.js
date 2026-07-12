@@ -6,33 +6,10 @@ import { cores, fontes } from '../theme';
 import { api } from '../api/client';
 import { STATUS_PAGAMENTO } from '../lib/enums';
 import { moedaBRL, dataCurtaMes, centavosParaInput } from '../lib/formato';
+import { agrupar } from '../lib/grafico';
 import NovoPedidoSheet from '../components/NovoPedidoSheet';
 
 const SEG_STATUS = Object.entries(STATUS_PAGAMENTO).map(([v, { label }]) => [v, label]);
-const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-
-// Agrupa pedidos por mês ('AAAA-MM') ou semana (segunda-feira), soma valores,
-// devolve os 7 buckets mais recentes em ordem cronológica.
-function agrupar(pedidos, modo) {
-  const buckets = new Map();
-  for (const p of pedidos) {
-    const d = new Date(String(p.data_pedido).slice(0, 10) + 'T00:00:00');
-    let chave, label;
-    if (modo === 'mes') {
-      chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      label = MESES_ABREV[d.getMonth()];
-    } else {
-      const seg = new Date(d);
-      seg.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // segunda da semana
-      chave = seg.toISOString().slice(0, 10);
-      label = `${String(seg.getDate()).padStart(2, '0')}/${String(seg.getMonth() + 1).padStart(2, '0')}`;
-    }
-    const b = buckets.get(chave) || { chave, label, total: 0 };
-    b.total += p.valor_centavos;
-    buckets.set(chave, b);
-  }
-  return [...buckets.values()].sort((a, b) => a.chave.localeCompare(b.chave)).slice(-7);
-}
 
 export default function PedidosScreen() {
   const insets = useSafeAreaInsets();

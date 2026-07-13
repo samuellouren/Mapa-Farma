@@ -7,6 +7,14 @@ export function dataHojeExtenso() {
   return `${DIAS[d.getDay()]}, ${d.getDate()} de ${MESES[d.getMonth()]}`;
 }
 
+// Data LOCAL do aparelho como 'AAAA-MM-DD'. É o "dia da venda" na visão do
+// vendedor — enviado como data_pedido ao criar. NÃO usar a data UTC do servidor:
+// venda à noite no Brasil (UTC-3) cairia no dia (e na semana) seguinte, sumindo
+// do gráfico. Mesma base local do agrupamento em grafico.js (função ymd).
+export function dataLocalYMD(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 // 'AAAA-MM-DD...' → 'DD/MM/AAAA'
 export function dataCurta(iso) {
   if (!iso) return '';

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { cores } from '../theme';
 import { api } from '../api/client';
 import { STATUS_PAGAMENTO } from '../lib/enums';
-import { dataCurtaMes, dataVencimentoDe } from '../lib/formato';
+import { dataCurtaMes, dataVencimentoDe, dataLocalYMD } from '../lib/formato';
 import { useAlturaTeclado } from '../lib/useAlturaTeclado';
 import FarmaciaPicker from './FarmaciaPicker';
 
@@ -48,6 +48,9 @@ export default function NovoPedidoSheet({ modo = 'criar', idAlvo = null, farmaci
         farmacia_id: farmacia.id, valor_centavos: centavos, status_pagamento: status,
         data_vencimento: venc,
       };
+      // data_pedido = dia LOCAL do aparelho (não a data UTC do servidor). Só ao
+      // criar; ao editar, data_pedido é imutável no backend.
+      if (modo !== 'editar') dados.data_pedido = dataLocalYMD();
       const p = modo === 'editar'
         ? await api.atualizarPedido(idAlvo, dados)
         : await api.criarPedido(dados);

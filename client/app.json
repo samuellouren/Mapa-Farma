@@ -15,10 +15,8 @@
     "android": {
       "package": "com.mapafarma.app",
       "adaptiveIcon": {
-        "backgroundColor": "#7a2833",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#7a2833"
       },
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -35,6 +33,15 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "O Mapa Farma usa sua localização para centralizar o mapa e ajudar a traçar rotas até as farmácias."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#7a2833"
         }
       ]
     ],

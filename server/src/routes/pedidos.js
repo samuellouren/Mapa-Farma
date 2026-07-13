@@ -3,7 +3,7 @@ import { db } from '../db.js';
 import { autenticar } from '../middleware/auth.js';
 import { ah } from '../lib/asyncHandler.js';
 import { STATUS_PAGAMENTO } from '../lib/enums.js';
-import { dataISOValida } from '../lib/datas.js';
+import { dataISOValida, dataLocalMaceio } from '../lib/datas.js';
 
 export const pedidosRouter = Router();
 pedidosRouter.use(autenticar);
@@ -40,7 +40,9 @@ pedidosRouter.post('/', ah(async (req, res) => {
   if (data_vencimento != null && !dataISOValida(data_vencimento)) {
     return res.status(400).json({ erro: 'data_vencimento deve ser YYYY-MM-DD ou null' });
   }
-  const data = data_pedido || new Date().toISOString().slice(0, 10);
+  // Fallback: dia local de Maceió (não UTC) — ver dataLocalMaceio. O client já
+  // manda data_pedido (dia local do aparelho); isto cobre chamadas sem o campo.
+  const data = data_pedido || dataLocalMaceio();
 
   const far = await db.execute({ sql: 'SELECT id FROM farmacias WHERE id = ?', args: [farmacia_id] });
   if (!far.rows[0]) return res.status(404).json({ erro: 'Farmácia não encontrada' });

@@ -1,3 +1,12 @@
+// Data local de Maceió (UTC-3, sem horário de verão) como 'YYYY-MM-DD'.
+// Mesma convenção do plano de notificações (SQL `date('now','-3 hours')`).
+// Usada como fallback de data_pedido: o app raciocina em dias locais, então
+// gravar a data UTC faria vendas noturnas caírem no dia seguinte. Independe do
+// fuso do host — subtrai o offset e lê a parte de data em UTC.
+export function dataLocalMaceio(agora = new Date()) {
+  return new Date(agora.getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 // 'YYYY-MM-DD' válido? (formato estrito + data real). Vazio/null → tratado fora.
 // Checagem por inteiros, sem Date — independente do fuso do host.
 export function dataISOValida(s) {

@@ -6,12 +6,6 @@ Os representantes veem as farmácias da cidade num mapa real, registram visitas,
 > Projeto feito para um cliente real. Está no ar e em uso pela equipe comercial.
 > Nenhum dado do cliente está neste repositório.
 
-<p align="center">
-  <img src="docs/screenshots/mapa.png"    width="220" alt="Tela de mapa com farmácias marcadas em Maceió" />
-  <img src="docs/screenshots/ficha.png"   width="220" alt="Ficha da farmácia com status de visita e perfil de pagamento" />
-  <img src="docs/screenshots/painel.png"  width="220" alt="Painel com estatísticas de visitas e carteira" />
-  <img src="docs/screenshots/pedidos.png" width="220" alt="Tela de pedidos com totais e gráfico de vendas" />
-</p>
 
 ---
 
